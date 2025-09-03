@@ -1,16 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>My Portfolio</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>CS180 Project 0 – Becoming Friends with Your Camera</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-color: #fafafa;
+      color: #333;
+      line-height: 1.6;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    .section {
+      margin-bottom: 50px;
+    }
+    .images {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+    .images img {
+      max-width: 45%;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .gif {
+      text-align: center;
+      margin-top: 20px;
+    }
+    footer {
+      text-align: center;
+      margin-top: 60px;
+      font-size: 0.9em;
+      color: #777;
+    }
+  </style>
 </head>
 <body>
-    <h1>Welcome to My CS180 Portfolio!</h1>
-    <a href="./1/index.html">Project 1</a>
+  <h1>CS180 Project 0</h1>
+  <h2>Becoming Friends with Your Camera</h2>
+
+  <div class="section">
+    <h2>Part 1: Selfie – The Wrong Way vs. The Right Way</h2>
+    <p>
+      I took two portraits: one close-up (distorted), and one from further back with zoom 
+      (more natural proportions). This experiment shows how perspective affects facial appearance.
+    </p>
+    <div class="images">
+      <img src="images/selfie_close.jpg" alt="Close-up Selfie (Wrong Way)">
+      <img src="images/selfie_zoom.jpg" alt="Zoomed Selfie (Right Way)">
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Part 2: Architectural Perspective Compression</h2>
+    <p>
+      I photographed the same street scene twice: first zoomed in from far away, 
+      and then from closer without zoom. The zoomed-in version looks "flattened" 
+      compared to the wide-angle one.
+    </p>
+    <div class="images">
+      <img src="images/street_zoom.jpg" alt="Zoomed Street Scene">
+      <img src="images/street_wide.jpg" alt="Wide Street Scene">
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Part 3: The Dolly Zoom</h2>
+    <p>
+      I recreated the famous "Vertigo effect" by moving the camera backwards while zooming in, 
+      keeping the subject roughly the same size. The background perspective shifts dramatically!
+    </p>
+    <div class="gif">
+      <img src="images/dollyzoom.gif" alt="Dolly Zoom Animation">
+    </div>
+  </div>
+
+  <footer>
+    <p>Created for CS180: Intro to Computer Vision and Computational Photography</p>
+    <p>Hosted with ❤️ on GitHub Pages</p>
+  </footer>
 </body>
 </html>
