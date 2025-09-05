@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CS180 Project 1: Image Colorization</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: auto; line-height: 1.6; }
+    h1, h2, h3 { color: #003366; }
+    img { max-width: 100%; height: auto; margin: 10px 0; }
+    table { border-collapse: collapse; margin: 20px 0; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    .before-after { display: flex; gap: 20px; flex-wrap: wrap; }
+    .before-after div { flex: 1; min-width: 300px; }
+  </style>
+</head>
+<body>
+  <h1>CS180 Project 1: Colorizing the Prokudin-Gorskii Collection</h1>
+  <h2>Author: Zhang Zhendan</h2>
+
+  <h2>Overview</h2>
+  <p>
+    In this project, I implemented an algorithm to automatically align and colorize
+    the digitized glass plate images from the Prokudin-Gorskii collection. Each image
+    contains three monochrome channels (Blue, Green, Red) stacked vertically. The task
+    is to properly align them to reconstruct a full RGB color image.
+  </p>
+
+  <h2>Approach</h2>
+  <p>
+    I started with simple similarity metrics (SSD and NCC), but initial results were poor
+    because misalignments at the edges strongly influenced the score. To address this,
+    I cropped off image borders before computing similarity, which significantly improved
+    alignment on low-resolution JPGs.
+  </p>
+  <p>
+    However, applying this brute-force method on high-resolution <code>.tif</code> images was extremely slow.
+    To solve this, I implemented a <b>multi-scale pyramid alignment</b>: images are repeatedly downsampled
+    until small, aligned at the coarsest level, then progressively refined at higher resolutions.
+    By tuning the search range and cropping ratio, speed improved dramatically while maintaining accuracy.
+  </p>
+  <p>
+    After these improvements, most images aligned well. The only difficult case was <b>Emir</b>:
+    its red channel is much brighter and structurally different from the blue/green channels, making NCC fail.
+    To solve this, I implemented an <b>edge-based similarity metric</b>:
+    </p>
+    <ul>
+      <li>Applied Sobel edge detection to both channels.</li>
+      <li>Computed NCC on the edge maps instead of raw intensities.</li>
+    </ul>
+  <p>
+    Additionally, I reduced the pyramid search range per level, which both sped up computation
+    and constrained the alignment more accurately. With this modification, Emir could be aligned properly.
+  </p>
+
+  <h2>Results</h2>
+  <p>Below are the reconstructed color images and their computed displacements (dx, dy).</p>
+
+  <table>
+    <tr><th>Image</th><th>Offsets (Green vs Blue)</th><th>Offsets (Red vs Blue)</th></tr>
+    <tr><td>Cathedral</td><td>(5, 2)</td><td>(12, 3)</td></tr>
+    <tr><td>Church</td><td>(25, 4)</td><td>(58, -4)</td></tr>
+    <tr><td>Emir</td><td>(49, 24)</td><td>(107, 41)</td></tr>
+    <tr><td>Harvesters</td><td>(60, 18)</td><td>(123, 14)</td></tr>
+    <tr><td>Icon</td><td>(41, 18)</td><td>(90, 23)</td></tr>
+    <tr><td>Italil</td><td>(38, 22)</td><td>(77, 36)</td></tr>
+    <tr><td>Lastochikino</td><td>(-3, -2)</td><td>(75, -8)</td></tr>
+    <tr><td>Lugano</td><td>(41, -16)</td><td>(93, -29)</td></tr>
+    <tr><td>Melons</td><td>(81, 10)</td><td>(178, 14)</td></tr>
+    <tr><td>Monastery</td><td>(-3, 2)</td><td>(3, 2)</td></tr>
+    <tr><td>Self-Portrait</td><td>(78, 29)</td><td>(175, 37)</td></tr>
+    <tr><td>Siren</td><td>(49, -5)</td><td>(96, -24)</td></tr>
+    <tr><td>Three Generations</td><td>(52, 13)</td><td>(110, 10)</td></tr>
+    <tr><td>Tobolsk</td><td>(3, 3)</td><td>(7, 3)</td></tr>
+    <tr><td>master-pnp-prok-00000-00087a</td><td>(48, 58)</td><td>(108, 74)</td></tr>
+    <tr><td>master-pnp-prok-00100-00178a</td><td>(21, 27)</td><td>(110, 53)</td></tr>
+    <tr><td>master-pnp-prok-00200-00220a</td><td>(45, -13)</td><td>(102, -11)</td></tr>
+  </table>
+
+  <h3>Sample Results</h3>
+  <div class="before-after">
+    <div>
+      <h4>Cathedral (aligned)</h4>
+      <img src="cs180 proj1 data/out_path/cathedral_output.jpg" alt="Cathedral result">
+    </div>
+    <div>
+      <h4>Emir (with Edge-NCC)</h4>
+      <img src="cs180 proj1 data/out_path/emir_output.jpg" alt="Emir result">
+    </div>
+  </div>
+
+    <h3>Three examples of my own choosing</h3>
+    <div class="image-pair">
+        <h4>Woman in traditional dress and jewelry standing on rug in front of yurt</h4>
+        <img src="cs180 proj1 data/out_path/master-pnp-prok-00000-00087a_output.jpg" alt="Example 1">
+    </div>
+    <div class="image-pair">
+        <h4>Etruscan vases in the Hermitage in Saint Petersburg</h4>
+        <img src="cs180 proj1 data/out_path/master-pnp-prok-00100-00178a_output.jpg" alt="Example 2">
+    </div>
+    <div class="image-pair">
+        <h4>On the island of Capri</h4>
+        <img src="cs180 proj1 data/out_path/master-pnp-prok-00200-00220a_output.jpg" alt="Example 3">
+    </div>
+
+  <h2>Discussion</h2>
+  <p>
+    The main challenges were efficiency on large <code>.tif</code> images and robustness on difficult cases
+    like Emir. Cropping and pyramids solved the speed issue, while Edge-NCC solved the robustness issue.
+    Overall, the algorithm performs well across the dataset, even on tricky images.
+  </p>
+</body>
+</html>
