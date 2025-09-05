@@ -11,7 +11,19 @@
     th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
     .before-after { display: flex; gap: 20px; flex-wrap: wrap; }
     .before-after div { flex: 1; min-width: 300px; }
+    code, .formula { background: #f8f8f8; padding: 2px 4px; border-radius: 4px; font-family: monospace; }
+    .formula { display: block; margin: 8px 0; font-style: italic; text-align: center; }
   </style>
+
+<!-- MathJax -->
+  <script>
+    MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+    };
+  </script>
+  <script id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+  </script>
 </head>
 <body>
   <h1>CS180 Project 1: Colorizing the Prokudin-Gorskii Collection</h1>
@@ -25,32 +37,67 @@
     is to properly align them to reconstruct a full RGB color image.
   </p>
 
-  <h2>Approach</h2>
-  <p>
-    I started with simple similarity metrics (SSD and NCC), but initial results were poor
-    because misalignments at the edges strongly influenced the score. To address this,
-    I cropped off image borders before computing similarity, which significantly improved
-    alignment on low-resolution JPGs.
-  </p>
-  <p>
-    However, applying this brute-force method on high-resolution <code>.tif</code> images was extremely slow.
-    To solve this, I implemented a <b>multi-scale pyramid alignment</b>: images are repeatedly downsampled
-    until small, aligned at the coarsest level, then progressively refined at higher resolutions.
-    By tuning the search range and cropping ratio, speed improved dramatically while maintaining accuracy.
-  </p>
-  <p>
-    After these improvements, most images aligned well. The only difficult case was <b>Emir</b>:
-    its red channel is much brighter and structurally different from the blue/green channels, making NCC fail.
-    To solve this, I implemented an <b>edge-based similarity metric</b>:
-    </p>
-    <ul>
-      <li>Applied Sobel edge detection to both channels.</li>
-      <li>Computed NCC on the edge maps instead of raw intensities.</li>
-    </ul>
-  <p>
-    Additionally, I reduced the pyramid search range per level, which both sped up computation
-    and constrained the alignment more accurately. With this modification, Emir could be aligned properly.
-  </p>
+  <h2>Algorithm</h2>
+
+<h3>Similarity Metrics</h3>
+<p>
+  To compare how well two channels are aligned, I tested both 
+  <b>Sum of Squared Differences (SSD)</b> and 
+  <b>Normalized Cross-Correlation (NCC)</b>.
+</p>
+
+<p>
+  $$SSD(I_1, I_2) = \sum_{x,y} \big( I_1(x,y) - I_2(x,y) \big)^2$$
+</p>
+
+<p>
+  $$
+  NCC(I_1, I_2) =
+  \frac{\sum_{x,y} (I_1(x,y) - \mu_1)(I_2(x,y) - \mu_2)}
+       {\sqrt{\sum_{x,y} (I_1(x,y) - \mu_1)^2} \cdot
+        \sqrt{\sum_{x,y} (I_2(x,y) - \mu_2)^2}}
+  $$
+</p>
+
+<p>
+  Here $\mu_1, \mu_2$ are the mean pixel values of the two images.  
+  SSD measures absolute difference (smaller is better), while NCC measures correlation (closer to 1 is better).
+</p>
+
+<h3>Border Cropping</h3>
+<p>
+  Directly computing similarity over the full images gave poor results, because noisy or damaged edges dominated
+  the metric. To fix this, I cropped ~30% of the borders before scoring.
+</p>
+
+<h3>Pyramid Alignment</h3>
+<p>
+  Brute-force searching over large displacements is slow for high-resolution <code>.tif</code> files.
+  To improve speed, I used a <b>pyramid approach</b>:
+</p>
+<ol>
+  <li>Construct a pyramid by repeatedly downsampling the image by a factor of 2 until the smallest dimension &lt; 64 pixels.</li>
+  <li>Align the channels at the coarsest (smallest) level with a small search window.</li>
+  <li>At each higher resolution, double the displacement estimate and refine it locally within ± search_range pixels.</li>
+</ol>
+<p>
+  This “coarse-to-fine” strategy reduces runtime from minutes to seconds while keeping high accuracy.
+</p>
+
+<h3>Edge-based NCC</h3>
+<p>
+  For difficult images like <b>Emir</b>, intensity differences across channels caused NCC to fail.
+  To address this, I computed similarity on <b>Sobel edge maps</b> instead of raw intensity:
+</p>
+
+<p>
+  $$E(x,y) = \sqrt{\Big(\frac{\partial I}{\partial x}\Big)^2 + \Big(\frac{\partial I}{\partial y}\Big)^2}$$
+</p>
+
+<p>
+  Then NCC was applied to these edge maps, making alignment robust to brightness differences.
+</p>
+
 
   <h2>Results</h2>
   <p>Below are the reconstructed color images and their computed displacements (dx, dy).</p>
@@ -88,19 +135,19 @@
     </div>
   </div>
 
-    <h3>Three examples of my own choosing</h3>
-    <div class="image-pair">
-        <h4>Woman in traditional dress and jewelry standing on rug in front of yurt</h4>
-        <img src="cs180 proj1 data/out_path/master-pnp-prok-00000-00087a_output.jpg" alt="Example 1">
-    </div>
-    <div class="image-pair">
-        <h4>Etruscan vases in the Hermitage in Saint Petersburg</h4>
-        <img src="cs180 proj1 data/out_path/master-pnp-prok-00100-00178a_output.jpg" alt="Example 2">
-    </div>
-    <div class="image-pair">
-        <h4>On the island of Capri</h4>
-        <img src="cs180 proj1 data/out_path/master-pnp-prok-00200-00220a_output.jpg" alt="Example 3">
-    </div>
+  <h3>Three examples of my own choosing</h3>
+  <div class="image-pair">
+    <h4>Woman in traditional dress and jewelry standing on rug in front of yurt</h4>
+    <img src="cs180 proj1 data/out_path/master-pnp-prok-00000-00087a_output.jpg" alt="Example 1">
+  </div>
+  <div class="image-pair">
+    <h4>Etruscan vases in the Hermitage in Saint Petersburg</h4>
+    <img src="cs180 proj1 data/out_path/master-pnp-prok-00100-00178a_output.jpg" alt="Example 2">
+  </div>
+  <div class="image-pair">
+    <h4>On the island of Capri</h4>
+    <img src="cs180 proj1 data/out_path/master-pnp-prok-00200-00220a_output.jpg" alt="Example 3">
+  </div>
 
   <h2>Discussion</h2>
   <p>
@@ -108,5 +155,11 @@
     like Emir. Cropping and pyramids solved the speed issue, while Edge-NCC solved the robustness issue.
     Overall, the algorithm performs well across the dataset, even on tricky images.
   </p>
+
+<footer>
+  <p><a href="../index.html">⬅ Back to Portfolio Home</a></p>
+  <p>Created for CS180 – Fall 2025</p>
+</footer>
+
 </body>
 </html>
