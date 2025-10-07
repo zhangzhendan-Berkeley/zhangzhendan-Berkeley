@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Image Warping & Mosaicing Report</title>
+  <title>Project 3: Image Warping & Mosaicing, Feature Matching for Auto-Stitching</title>
   <style>
     body { font-family: Arial, sans-serif; max-width: 1100px; margin: 30px auto; line-height: 1.6; color: #222; }
     h1, h2, h3 { color: #0b3d91; margin-bottom: 6px; }
@@ -33,7 +33,7 @@
   </script>
 </head>
 <body>
-  <h1>Image Warping & Mosaicing — Project Report</h1>
+  <h1>Project 3A: Image Warping & Mosaicing — Project Report</h1>
   <h2>Author: Zhang Zhendan</h2>
 
   <h2>Overview</h2>
@@ -225,6 +225,100 @@ H_sky ≈
     <li><strong>Blending limits:</strong> Weighted averaging performs well for modest misalignment, but residual parallax or slight translations during capture can still cause faint ghosting — Laplacian pyramid blending reduces these artifacts for high-frequency content.</li>
     <li><strong>Practical tip:</strong> If you anticipate rotations only, enforcing the camera center constraint and using larger, accurately placed correspondences on distant features improves results.</li>
   </ul>
+
+  <h1>CS180 Project 3B: Feature Matching for Auto-Stitching</h1>
+  <h2>Author: Zhang Zhendan</h2>
+
+  <h2>Overview</h2>
+  <p>
+    In this project, I implemented an automatic image stitching pipeline following the
+    paper "Multi-Image Matching using Multi-Scale Oriented Patches" by Brown et al., with
+    several simplifications. The main steps include detecting Harris corners, applying
+    ANMS, extracting feature descriptors, matching features, and computing homographies
+    using RANSAC to stitch images into mosaics.
+  </p>
+
+  <h2>B.1: Harris Corner Detection</h2>
+  <p>Below are the detected Harris corners for the room images, both with and without ANMS.</p>
+  <div class="before-after">
+    <div>
+      <h4>All Harris Corners</h4>
+      <img src="All_corners_room.png" alt="All corners">
+    </div>
+    <div>
+      <h4>After ANMS</h4>
+      <img src="ANMS_corners_room.png" alt="ANMS corners">
+    </div>
+  </div>
+
+  <h3>Left and Right Harris Corners</h3>
+  <div class="before-after">
+    <div>
+      <h4>Left Image</h4>
+      <img src="Harris_corners_room.png" alt="Harris corners">
+    </div>
+  </div>
+
+  <h2>B.2: Feature Descriptor Extraction</h2>
+  <p>
+    For each selected corner, I extracted axis-aligned 8x8 descriptors from 40x40
+    windows, normalized by mean and standard deviation. This ensures descriptors are
+    robust to local intensity variations.
+  </p>
+  <div class="before-after">
+    <div>
+      <h4>Example Descriptors</h4>
+      <img src="Showed_patches.png" alt="Example descriptors">
+    </div>
+  </div>
+
+  <h2>B.3: Feature Matching</h2>
+  <p>
+    Feature descriptors were matched between left and right images using Lowe's ratio
+    test. Matches that pass the ratio threshold are likely correct correspondences.
+  </p>
+  <div class="before-after">
+    <div>
+      <h4>Matched Features - Room</h4>
+      <img src="Matched_features_room.png" alt="Matched features room">
+    </div>
+    <div>
+      <h4>Matched Features - Street</h4>
+      <img src="Matched_features_street.png" alt="Matched features street">
+    </div>
+    <div>
+      <h4>Matched Features - Sky</h4>
+      <img src="Matched_features_sky.png" alt="Matched features sky">
+    </div>
+  </div>
+
+  <h2>B.4: RANSAC for Robust Homography</h2>
+  <p>
+    Using the matched feature points, I applied 4-point RANSAC to estimate a robust
+    homography. Only inliers were used for stitching to generate the mosaic.
+  </p>
+  <div class="before-after">
+    <div>
+      <h4>Auto-Stitched Mosaic - Room</h4>
+      <img src="MosaicAuto_room.png" alt="Auto mosaic room">
+    </div>
+    <div>
+      <h4>Auto-Stitched Mosaic - Street</h4>
+      <img src="MosaicAuto_street.png" alt="Auto mosaic street">
+    </div>
+    <div>
+      <h4>Auto-Stitched Mosaic - Sky</h4>
+      <img src="MosaicAuto_sky.png" alt="Auto mosaic sky">
+    </div>
+  </div>W
+
+  <h2>Discussion</h2>
+  <p>
+    The pipeline successfully detects and selects feature points, extracts normalized
+    descriptors, matches features using Lowe's ratio test, and computes robust
+    homographies with RANSAC. The resulting mosaics demonstrate correct alignment
+    and blending of the images.
+  </p>
 
 <footer>
   <p><a href="../index.html">⬅ Back to Portfolio Home</a></p>
