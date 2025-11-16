@@ -71,110 +71,110 @@
 <div class="caption">Sample calibration images captured from various angles.</div>
 
 
-  <h4>Calibration Code</h4>
-  <pre>
-import cv2
-import numpy as np
-import glob
-import os
-import time
+<!--  <h4>Calibration Code</h4>-->
+<!--  <pre>-->
+<!--import cv2-->
+<!--import numpy as np-->
+<!--import glob-->
+<!--import os-->
+<!--import time-->
 
-# ============================================================
-# Configuration
-# ============================================================
-IMAGE_PATTERN = "calibration_images_ds/*.jpg"   # 标定图像路径，可改为你的路径
-TAG_SIZE_M = 0.054                               # 单个 ArUco 边长（米）
-SAVE_PATH = "camera_calibration.npz"            # 输出文件
-VISUALIZE = False                               # 是否显示检测结果
+<!--# ============================================================-->
+<!--# Configuration-->
+<!--# ============================================================-->
+<!--IMAGE_PATTERN = "calibration_images_ds/*.jpg"   # 标定图像路径，可改为你的路径-->
+<!--TAG_SIZE_M = 0.054                               # 单个 ArUco 边长（米）-->
+<!--SAVE_PATH = "camera_calibration.npz"            # 输出文件-->
+<!--VISUALIZE = False                               # 是否显示检测结果-->
 
-# ============================================================
-# 1. 创建 ArUco 检测器
-# ============================================================
-aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-aruco_params = (cv2.aruco.DetectorParameters_create()
-                if hasattr(cv2.aruco, "DetectorParameters_create")
-                else cv2.aruco.DetectorParameters())
+<!--# ============================================================-->
+<!--# 1. 创建 ArUco 检测器-->
+<!--# ============================================================-->
+<!--aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)-->
+<!--aruco_params = (cv2.aruco.DetectorParameters_create()-->
+<!--                if hasattr(cv2.aruco, "DetectorParameters_create")-->
+<!--                else cv2.aruco.DetectorParameters())-->
 
-# ============================================================
-# 2. 加载图片
-# ============================================================
-images = sorted(glob.glob(IMAGE_PATTERN))
-if len(images) == 0:
-    raise RuntimeError("No calibration images found!")
+<!--# ============================================================-->
+<!--# 2. 加载图片-->
+<!--# ============================================================-->
+<!--images = sorted(glob.glob(IMAGE_PATTERN))-->
+<!--if len(images) == 0:-->
+<!--    raise RuntimeError("No calibration images found!")-->
 
-print(f"[INFO] Found {len(images)} images for calibration")
+<!--print(f"[INFO] Found {len(images)} images for calibration")-->
 
-# ============================================================
-# 3. 构建3D世界坐标（每个tag的4个角）
-# ============================================================
-objp = np.array([
-    [0, 0, 0],
-    [TAG_SIZE_M, 0, 0],
-    [TAG_SIZE_M, TAG_SIZE_M, 0],
-    [0, TAG_SIZE_M, 0]
-], dtype=np.float32)
+<!--# ============================================================-->
+<!--# 3. 构建3D世界坐标（每个tag的4个角）-->
+<!--# ============================================================-->
+<!--objp = np.array([-->
+<!--    [0, 0, 0],-->
+<!--    [TAG_SIZE_M, 0, 0],-->
+<!--    [TAG_SIZE_M, TAG_SIZE_M, 0],-->
+<!--    [0, TAG_SIZE_M, 0]-->
+<!--], dtype=np.float32)-->
 
-objpoints = []   # 存放3D点
-imgpoints = []   # 存放2D点
-valid_count = 0
+<!--objpoints = []   # 存放3D点-->
+<!--imgpoints = []   # 存放2D点-->
+<!--valid_count = 0-->
 
-# ============================================================
-# 4. 遍历所有图片并检测角点（仅使用 ID==0 的 tag）
-# ============================================================
-for idx, fname in enumerate(images):
-    img = cv2.imread(fname)
-    if img is None:
-        print(f"[WARN] Cannot read {fname}, skipping.")
-        continue
+<!--# ============================================================-->
+<!--# 4. 遍历所有图片并检测角点（仅使用 ID==0 的 tag）-->
+<!--# ============================================================-->
+<!--for idx, fname in enumerate(images):-->
+<!--    img = cv2.imread(fname)-->
+<!--    if img is None:-->
+<!--        print(f"[WARN] Cannot read {fname}, skipping.")-->
+<!--        continue-->
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=aruco_params)
+<!--    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)-->
+<!--    corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=aruco_params)-->
 
-    if ids is not None:
-        ids = ids.flatten()
-        if 0 in ids:
-            # 找到 id==0 的索引
-            i0 = np.where(ids == 0)[0][0]
-            objpoints.append(objp)
-            imgpoints.append(corners[i0][0])
-            valid_count += 1
+<!--    if ids is not None:-->
+<!--        ids = ids.flatten()-->
+<!--        if 0 in ids:-->
+<!--            # 找到 id==0 的索引-->
+<!--            i0 = np.where(ids == 0)[0][0]-->
+<!--            objpoints.append(objp)-->
+<!--            imgpoints.append(corners[i0][0])-->
+<!--            valid_count += 1-->
 
-            if VISUALIZE:
-                cv2.aruco.drawDetectedMarkers(img, [corners[i0]], np.array([[0]]))
-                cv2.imshow("Detected Tag 0", img)
-                cv2.waitKey(100)
-        else:
-            print(f"[WARN] No tag ID=0 in image {idx+1}")
-    else:
-        print(f"[WARN] No tags detected in image {idx+1}")
+<!--            if VISUALIZE:-->
+<!--                cv2.aruco.drawDetectedMarkers(img, [corners[i0]], np.array([[0]]))-->
+<!--                cv2.imshow("Detected Tag 0", img)-->
+<!--                cv2.waitKey(100)-->
+<!--        else:-->
+<!--            print(f"[WARN] No tag ID=0 in image {idx+1}")-->
+<!--    else:-->
+<!--        print(f"[WARN] No tags detected in image {idx+1}")-->
 
-cv2.destroyAllWindows()
-print(f"[INFO] Using {valid_count} valid frames (tag ID=0 detected)")
+<!--cv2.destroyAllWindows()-->
+<!--print(f"[INFO] Using {valid_count} valid frames (tag ID=0 detected)")-->
 
-# ============================================================
-# 5. 相机标定计算
-# ============================================================
-if len(objpoints) < 3:
-    raise RuntimeError("Not enough valid detections for calibration (need >=3 frames with tag ID=0).")
+<!--# ============================================================-->
+<!--# 5. 相机标定计算-->
+<!--# ============================================================-->
+<!--if len(objpoints) < 3:-->
+<!--    raise RuntimeError("Not enough valid detections for calibration (need >=3 frames with tag ID=0).")-->
 
-flags = (cv2.CALIB_FIX_K3 | cv2.CALIB_ZERO_TANGENT_DIST)
-print(f"[INFO] Running calibration with {len(objpoints)} valid detections...")
+<!--flags = (cv2.CALIB_FIX_K3 | cv2.CALIB_ZERO_TANGENT_DIST)-->
+<!--print(f"[INFO] Running calibration with {len(objpoints)} valid detections...")-->
 
-start = time.time()
-ret, K, dist, rvecs, tvecs = cv2.calibrateCamera(
-    objpoints, imgpoints, gray.shape[::-1], None, None, flags=flags)
-print(f"[INFO] Calibration finished in {time.time()-start:.2f}s")
+<!--start = time.time()-->
+<!--ret, K, dist, rvecs, tvecs = cv2.calibrateCamera(-->
+<!--    objpoints, imgpoints, gray.shape[::-1], None, None, flags=flags)-->
+<!--print(f"[INFO] Calibration finished in {time.time()-start:.2f}s")-->
 
-# ============================================================
-# 6. 保存与输出结果
-# ============================================================
-np.savez(SAVE_PATH, K=K, dist=dist, rvecs=rvecs, tvecs=tvecs, error=ret)
-print(f"[SUCCESS] Calibration done! Saved to {SAVE_PATH}")
-print("[RESULT] Reprojection error:", ret)
-print("[INTRINSIC MATRIX K]:\n", K)
-print("[DISTORTION COEFFS]:", dist.ravel())
+<!--# ============================================================-->
+<!--# 6. 保存与输出结果-->
+<!--# ============================================================-->
+<!--np.savez(SAVE_PATH, K=K, dist=dist, rvecs=rvecs, tvecs=tvecs, error=ret)-->
+<!--print(f"[SUCCESS] Calibration done! Saved to {SAVE_PATH}")-->
+<!--print("[RESULT] Reprojection error:", ret)-->
+<!--print("[INTRINSIC MATRIX K]:\n", K)-->
+<!--print("[DISTORTION COEFFS]:", dist.ravel())-->
 
-  </pre>
+<!--  </pre>-->
 
   <h3>0.2 — Capturing Object Scan</h3>
   <p>
@@ -208,159 +208,159 @@ print("[DISTORTION COEFFS]:", dist.ravel())
 <div class="caption">Visualization of estimated camera frustums using Viser.</div>
 
 
-  <h4>PnP Pose Estimation Code</h4>
-  <pre>
-# -*- coding: utf-8 -*-
-import cv2
-import numpy as np
-import glob
-import time
-import viser
-import os
+<!--  <h4>PnP Pose Estimation Code</h4>-->
+<!--  <pre>-->
+<!--# -*- coding: utf-8 -*- -->
+<!--import cv2-->
+<!--import numpy as np-->
+<!--import glob-->
+<!--import time-->
+<!--import viser-->
+<!--import os-->
 
-# ============================================================
-# 0. Load Intrinsics
-# ============================================================
-data = np.load("camera_calibration.npz")
-K = data["K"]
-dist = data["dist"]
-print("[INFO] Loaded intrinsics:")
-print("K =\n", K)
-print("dist =", dist.ravel())
+<!--# ============================================================-->
+<!--# 0. Load Intrinsics-->
+<!--# ============================================================-->
+<!--data = np.load("camera_calibration.npz")-->
+<!--K = data["K"]-->
+<!--dist = data["dist"]-->
+<!--print("[INFO] Loaded intrinsics:")-->
+<!--print("K =\n", K)-->
+<!--print("dist =", dist.ravel())-->
 
-os.makedirs("poses", exist_ok=True)
+<!--os.makedirs("poses", exist_ok=True)-->
 
-# ============================================================
-# 1. Define ArUco Tag 3D Corner Coordinates (world coordinates)
-#    (tag is 2cm x 2cm in this example)
-# ============================================================
-tag_size = 0.04  # meters
-s = tag_size / 2
-objp = np.array([
-    [-s,  s, 0],   # TL
-    [ s,  s, 0],   # TR
-    [ s, -s, 0],   # BR
-    [-s, -s, 0],   # BL
-], dtype=np.float32)
+<!--# ============================================================-->
+<!--# 1. Define ArUco Tag 3D Corner Coordinates (world coordinates)-->
+<!--#    (tag is 2cm x 2cm in this example)-->
+<!--# ============================================================-->
+<!--tag_size = 0.04  # meters-->
+<!--s = tag_size / 2-->
+<!--objp = np.array([-->
+<!--    [-s,  s, 0],   # TL-->
+<!--    [ s,  s, 0],   # TR-->
+<!--    [ s, -s, 0],   # BR-->
+<!--    [-s, -s, 0],   # BL-->
+<!--], dtype=np.float32)-->
 
-# ============================================================
-# 2. Initialize ArUco Detector
-# ============================================================
-aruco_dict   = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-aruco_params = cv2.aruco.DetectorParameters()
+<!--# ============================================================-->
+<!--# 2. Initialize ArUco Detector-->
+<!--# ============================================================-->
+<!--aruco_dict   = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)-->
+<!--aruco_params = cv2.aruco.DetectorParameters()-->
 
-# ============================================================
-# 3. Estimate Camera Pose for Each Image
-# ============================================================
-images = sorted(glob.glob("scan_downsampled/*.jpg"))
-print(f"[INFO] Found {len(images)} images")
+<!--# ============================================================-->
+<!--# 3. Estimate Camera Pose for Each Image-->
+<!--# ============================================================-->
+<!--images = sorted(glob.glob("scan_downsampled/*.jpg"))-->
+<!--print(f"[INFO] Found {len(images)} images")-->
 
-camera_poses = []   # list of (c2w, undistorted_image)
+<!--camera_poses = []   # list of (c2w, undistorted_image)-->
 
-for i, path in enumerate(images):
-    img = cv2.imread(path)
-    if img is None:
-        print(f"[WARN] Cannot load {path}")
-        continue
+<!--for i, path in enumerate(images):-->
+<!--    img = cv2.imread(path)-->
+<!--    if img is None:-->
+<!--        print(f"[WARN] Cannot load {path}")-->
+<!--        continue-->
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+<!--    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)-->
 
-    # --- Detect ArUco ---
-    corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=aruco_params)
-    if ids is None or len(ids) == 0:
-        print(f"[WARN] No tag found in {path}, skipped.")
-        continue
+<!--    # -&#45;&#45; Detect ArUco -&#45;&#45;-->
+<!--    corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=aruco_params)-->
+<!--    if ids is None or len(ids) == 0:-->
+<!--        print(f"[WARN] No tag found in {path}, skipped.")-->
+<!--        continue-->
 
-    target_id = 0  # 你打印的标签 ID
-    flat_ids = ids.flatten()
+<!--    target_id = 0  # 你打印的标签 ID-->
+<!--    flat_ids = ids.flatten()-->
 
-    if target_id not in flat_ids:
-        print(f"[WARN] Tag {target_id} not found in {path}, skipped.")
-        continue
+<!--    if target_id not in flat_ids:-->
+<!--        print(f"[WARN] Tag {target_id} not found in {path}, skipped.")-->
+<!--        continue-->
 
-    idx = np.where(flat_ids == target_id)[0][0]
-    imgp = corners[idx].reshape(-1, 2).astype(np.float32)
+<!--    idx = np.where(flat_ids == target_id)[0][0]-->
+<!--    imgp = corners[idx].reshape(-1, 2).astype(np.float32)-->
 
-    # --- Solve PnP (world→camera) ---
-    ret = cv2.solvePnPGeneric(
-        objp, imgp, K, dist,
-        flags=cv2.SOLVEPNP_IPPE_SQUARE
-    )
+<!--    # -&#45;&#45; Solve PnP (world→camera) -&#45;&#45;-->
+<!--    ret = cv2.solvePnPGeneric(-->
+<!--        objp, imgp, K, dist,-->
+<!--        flags=cv2.SOLVEPNP_IPPE_SQUARE-->
+<!--    )-->
 
-    # ret 的长度可能是 3, 4, 或 6
-    # 最前面永远是：
-    #   ret[0] = success
-    #   ret[1] = rvecs（list）
-    #   ret[2] = tvecs（list）
+<!--    # ret 的长度可能是 3, 4, 或 6-->
+<!--    # 最前面永远是：-->
+<!--    #   ret[0] = success-->
+<!--    #   ret[1] = rvecs（list）-->
+<!--    #   ret[2] = tvecs（list）-->
 
-    success = ret[0]
-    rvecs = ret[1]
-    tvecs = ret[2]
+<!--    success = ret[0]-->
+<!--    rvecs = ret[1]-->
+<!--    tvecs = ret[2]-->
 
-    if not success:
-        print("IPPE solvePnPGeneric failed")
-        continue
+<!--    if not success:-->
+<!--        print("IPPE solvePnPGeneric failed")-->
+<!--        continue-->
 
-    # 拿两个解：
-    # rvecs[0], tvecs[0] = 主解
-    # rvecs[1], tvecs[1] = 镜像解（法向反向）
+<!--    # 拿两个解：-->
+<!--    # rvecs[0], tvecs[0] = 主解-->
+<!--    # rvecs[1], tvecs[1] = 镜像解（法向反向）-->
 
-    R1, _ = cv2.Rodrigues(rvecs[0])
-    t1 = tvecs[0].reshape(3)
+<!--    R1, _ = cv2.Rodrigues(rvecs[0])-->
+<!--    t1 = tvecs[0].reshape(3)-->
 
-    R2, _ = cv2.Rodrigues(rvecs[1])
-    t2 = tvecs[1].reshape(3)
+<!--    R2, _ = cv2.Rodrigues(rvecs[1])-->
+<!--    t2 = tvecs[1].reshape(3)-->
 
-    # 计算两个解的相机位置（OpenCV w2c → c2w）
-    cam1 = -R1.T @ t1
-    cam2 = -R2.T @ t2
+<!--    # 计算两个解的相机位置（OpenCV w2c → c2w）-->
+<!--    cam1 = -R1.T @ t1-->
+<!--    cam2 = -R2.T @ t2-->
 
-    # 选择 “相机在 tag 上方（z > 0）” 的解
-    if cam1[2] > cam2[2]:
-        R, t = R1, t1
-    else:
-        R, t = R2, t2
+<!--    # 选择 “相机在 tag 上方（z > 0）” 的解-->
+<!--    if cam1[2] > cam2[2]:-->
+<!--        R, t = R1, t1-->
+<!--    else:-->
+<!--        R, t = R2, t2-->
 
-    # 构造 c2w
-    c2w = np.eye(4, dtype=np.float32)
-    c2w[:3, :3] = R.T
-    c2w[:3, 3] = -R.T @ t
+<!--    # 构造 c2w-->
+<!--    c2w = np.eye(4, dtype=np.float32)-->
+<!--    c2w[:3, :3] = R.T-->
+<!--    c2w[:3, 3] = -R.T @ t-->
 
-    camera_poses.append((c2w, img))
-    np.savez(f"poses/pose_{i:03d}.npz", c2w=c2w, image_path=path)
+<!--    camera_poses.append((c2w, img))-->
+<!--    np.savez(f"poses/pose_{i:03d}.npz", c2w=c2w, image_path=path)-->
 
-    print(f"[INFO] Pose {i:03d} OK, t = {t.ravel()}")
+<!--    print(f"[INFO] Pose {i:03d} OK, t = {t.ravel()}")-->
 
-print(f"[INFO] {len(camera_poses)} valid poses.")
+<!--print(f"[INFO] {len(camera_poses)} valid poses.")-->
 
-# ============================================================
-# 4. Visualize with Viser
-# ============================================================
-server = viser.ViserServer(share=False)
-print("[INFO] Launching Viser...")
+<!--# ============================================================-->
+<!--# 4. Visualize with Viser-->
+<!--# ============================================================-->
+<!--server = viser.ViserServer(share=False)-->
+<!--print("[INFO] Launching Viser...")-->
 
-for i, (c2w, img) in enumerate(camera_poses):
-    H, W = img.shape[:2]
-    fov = 2 * np.arctan2(H / 2, K[1, 1])
-    aspect = W / H
+<!--for i, (c2w, img) in enumerate(camera_poses):-->
+<!--    H, W = img.shape[:2]-->
+<!--    fov = 2 * np.arctan2(H / 2, K[1, 1])-->
+<!--    aspect = W / H-->
 
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+<!--    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)-->
 
-    server.scene.add_camera_frustum(
-        f"/cameras/{i}",
-        fov=float(fov),
-        aspect=float(aspect),
-        scale=0.02,
-        wxyz=viser.transforms.SO3.from_matrix(c2w[:3, :3]).wxyz,
-        position=c2w[:3, 3],
-        image=img_rgb
-    )
+<!--    server.scene.add_camera_frustum(-->
+<!--        f"/cameras/{i}",-->
+<!--        fov=float(fov),-->
+<!--        aspect=float(aspect),-->
+<!--        scale=0.02,-->
+<!--        wxyz=viser.transforms.SO3.from_matrix(c2w[:3, :3]).wxyz,-->
+<!--        position=c2w[:3, 3],-->
+<!--        image=img_rgb-->
+<!--    )-->
 
-print("[INFO] All frustums added. Explore in browser.")
-while True:
-    time.sleep(0.1)
+<!--print("[INFO] All frustums added. Explore in browser.")-->
+<!--while True:-->
+<!--    time.sleep(0.1)-->
 
-  </pre>
+<!--  </pre>-->
 
   <h3>0.4 — Undistorting Images and Building the Dataset</h3>
   <p>
@@ -379,176 +379,176 @@ while True:
     <li><code>focal</code>: The recovered focal length (fx=fy)</li>
   </ul>
 
-  <h4>Dataset Packaging Code</h4>
-  <pre>
-# -*- coding: utf-8 -*-
-import cv2
-import numpy as np
-import glob
-import os
+<!--  <h4>Dataset Packaging Code</h4>-->
+<!--  <pre>-->
+<!--# -*- coding: utf-8 -*- -->
+<!--import cv2-->
+<!--import numpy as np-->
+<!--import glob-->
+<!--import os-->
 
-# ============================================================
-# 0. 加载相机内参（来自 Part 0.1）
-# ============================================================
-CALIB_PATH = "camera_calibrationa.npz"
-POSE_DIR   = "poses"
-OUT_DIR    = "dataset"
-OUT_FILE   = os.path.join(OUT_DIR, "my_data.npz")
+<!--# ============================================================-->
+<!--# 0. 加载相机内参（来自 Part 0.1）-->
+<!--# ============================================================-->
+<!--CALIB_PATH = "camera_calibrationa.npz"-->
+<!--POSE_DIR   = "poses"-->
+<!--OUT_DIR    = "dataset"-->
+<!--OUT_FILE   = os.path.join(OUT_DIR, "my_data.npz")-->
 
-calib = np.load(CALIB_PATH)
-K_orig = calib["K"].astype(np.float32)
-dist   = calib["dist"].astype(np.float32)
+<!--calib = np.load(CALIB_PATH)-->
+<!--K_orig = calib["K"].astype(np.float32)-->
+<!--dist   = calib["dist"].astype(np.float32)-->
 
-print("[INFO] Loaded intrinsics K:")
-print(K_orig)
-print("dist =", dist.ravel())
+<!--print("[INFO] Loaded intrinsics K:")-->
+<!--print(K_orig)-->
+<!--print("dist =", dist.ravel())-->
 
-# ============================================================
-# 1. 加载姿态（poses/*.npz）
-# ============================================================
-pose_data = []
-for npz_file in sorted(glob.glob(os.path.join(POSE_DIR, "*.npz"))):
-    d = np.load(npz_file, allow_pickle=True)
-    c2w = d["c2w"].astype(np.float32)
+<!--# ============================================================-->
+<!--# 1. 加载姿态（poses/*.npz）-->
+<!--# ============================================================-->
+<!--pose_data = []-->
+<!--for npz_file in sorted(glob.glob(os.path.join(POSE_DIR, "*.npz"))):-->
+<!--    d = np.load(npz_file, allow_pickle=True)-->
+<!--    c2w = d["c2w"].astype(np.float32)-->
 
-    if "image_path" not in d:
-        print(f"[WARN] {npz_file} missing image_path")
-        continue
+<!--    if "image_path" not in d:-->
+<!--        print(f"[WARN] {npz_file} missing image_path")-->
+<!--        continue-->
 
-    path = d["image_path"].item()
-    if not os.path.exists(path):
-        print(f"[WARN] Image {path} missing")
-        continue
+<!--    path = d["image_path"].item()-->
+<!--    if not os.path.exists(path):-->
+<!--        print(f"[WARN] Image {path} missing")-->
+<!--        continue-->
 
-    pose_data.append((c2w, path))
+<!--    pose_data.append((c2w, path))-->
 
-if len(pose_data) == 0:
-    raise RuntimeError("[ERROR] No pose files!")
+<!--if len(pose_data) == 0:-->
+<!--    raise RuntimeError("[ERROR] No pose files!")-->
 
-print(f"[INFO] Found {len(pose_data)} pose files.")
+<!--print(f"[INFO] Found {len(pose_data)} pose files.")-->
 
-# ============================================================
-# 2. 去畸变 + 统一尺寸 + 同步更新 K
-# ============================================================
-images_out = []
-c2ws_out   = []
+<!--# ============================================================-->
+<!--# 2. 去畸变 + 统一尺寸 + 同步更新 K-->
+<!--# ============================================================-->
+<!--images_out = []-->
+<!--c2ws_out   = []-->
 
-target_size = None     # (W, H)
-K_final     = None     # undistort + resize 后的内参
+<!--target_size = None     # (W, H)-->
+<!--K_final     = None     # undistort + resize 后的内参-->
 
-for i, (c2w, path) in enumerate(pose_data):
-    img = cv2.imread(path)
-    if img is None:
-        print("[WARN] failed to read", path)
-        continue
+<!--for i, (c2w, path) in enumerate(pose_data):-->
+<!--    img = cv2.imread(path)-->
+<!--    if img is None:-->
+<!--        print("[WARN] failed to read", path)-->
+<!--        continue-->
 
-    H0, W0 = img.shape[:2]
+<!--    H0, W0 = img.shape[:2]-->
 
-    # (1) undistort 必须使用新 K
-    K_new, _ = cv2.getOptimalNewCameraMatrix(
-        K_orig, dist, (W0, H0), alpha=0
-    )
-    undist = cv2.undistort(img, K_orig, dist, None, K_new)
+<!--    # (1) undistort 必须使用新 K-->
+<!--    K_new, _ = cv2.getOptimalNewCameraMatrix(-->
+<!--        K_orig, dist, (W0, H0), alpha=0-->
+<!--    )-->
+<!--    undist = cv2.undistort(img, K_orig, dist, None, K_new)-->
 
-    # (2) 统一尺寸
-    if target_size is None:
-        target_size = (undist.shape[1], undist.shape[0])   # (W,H)
-        K_final = K_new.copy()
-        print(f"[INFO] Target size = {target_size}")
-    else:
-        if (undist.shape[1], undist.shape[0]) != target_size:
-            # resize + scale K_new
-            scale_w = target_size[0] / undist.shape[1]
-            scale_h = target_size[1] / undist.shape[0]
+<!--    # (2) 统一尺寸-->
+<!--    if target_size is None:-->
+<!--        target_size = (undist.shape[1], undist.shape[0])   # (W,H)-->
+<!--        K_final = K_new.copy()-->
+<!--        print(f"[INFO] Target size = {target_size}")-->
+<!--    else:-->
+<!--        if (undist.shape[1], undist.shape[0]) != target_size:-->
+<!--            # resize + scale K_new-->
+<!--            scale_w = target_size[0] / undist.shape[1]-->
+<!--            scale_h = target_size[1] / undist.shape[0]-->
 
-            undist = cv2.resize(undist, target_size, interpolation=cv2.INTER_AREA)
+<!--            undist = cv2.resize(undist, target_size, interpolation=cv2.INTER_AREA)-->
 
-            K_new[0,0] *= scale_w
-            K_new[1,1] *= scale_h
-            K_new[0,2] *= scale_w
-            K_new[1,2] *= scale_h
+<!--            K_new[0,0] *= scale_w-->
+<!--            K_new[1,1] *= scale_h-->
+<!--            K_new[0,2] *= scale_w-->
+<!--            K_new[1,2] *= scale_h-->
 
-        # 第一张的 K_new 是最终 K_final，其余保持一致即可
-        K_final = K_final  # 不变
+<!--        # 第一张的 K_new 是最终 K_final，其余保持一致即可-->
+<!--        K_final = K_final  # 不变-->
 
-    # (3) BGR → RGB，[0,255]
-    # rgb = cv2.cvtColor(undist, cv2.COLOR_BGR2RGB)
-    rgb = undist
-    rgb = rgb.astype(np.float32)
+<!--    # (3) BGR → RGB，[0,255]-->
+<!--    # rgb = cv2.cvtColor(undist, cv2.COLOR_BGR2RGB)-->
+<!--    rgb = undist-->
+<!--    rgb = rgb.astype(np.float32)-->
 
-    images_out.append(rgb)
-    c2ws_out.append(c2w)
+<!--    images_out.append(rgb)-->
+<!--    c2ws_out.append(c2w)-->
 
-images_out = np.array(images_out)       # (N,H,W,3)
-c2ws_out   = np.array(c2ws_out)         # (N,4,4)
-N, H, W, _ = images_out.shape
+<!--images_out = np.array(images_out)       # (N,H,W,3)-->
+<!--c2ws_out   = np.array(c2ws_out)         # (N,4,4)-->
+<!--N, H, W, _ = images_out.shape-->
 
-print(f"[INFO] Undistorted {N} images, final resolution = {H}×{W}")
-print("[INFO] Final K:")
-print(K_final)
+<!--print(f"[INFO] Undistorted {N} images, final resolution = {H}×{W}")-->
+<!--print("[INFO] Final K:")-->
+<!--print(K_final)-->
 
-# ============================================================
-# 3. 划分 train / val / test（test = 所有图像）
-# ============================================================
-idxs = np.arange(N)
-np.random.shuffle(idxs)
+<!--# ============================================================-->
+<!--# 3. 划分 train / val / test（test = 所有图像）-->
+<!--# ============================================================-->
+<!--idxs = np.arange(N)-->
+<!--np.random.shuffle(idxs)-->
 
-N_train = int(1.0 * N)
-N_val   = int(0.0 * N)
-N_test  = N      # ✅ test 全部图像
+<!--N_train = int(1.0 * N)-->
+<!--N_val   = int(0.0 * N)-->
+<!--N_test  = N      # ✅ test 全部图像-->
 
-train_idx = idxs[:N_train]
-val_idx   = idxs[N_train:N_train+N_val]
-test_idx  = np.arange(N)  # 顺序不变（你原来要求的）
+<!--train_idx = idxs[:N_train]-->
+<!--val_idx   = idxs[N_train:N_train+N_val]-->
+<!--test_idx  = np.arange(N)  # 顺序不变（你原来要求的）-->
 
-images_train = images_out[train_idx]
-c2ws_train   = c2ws_out[train_idx]
+<!--images_train = images_out[train_idx]-->
+<!--c2ws_train   = c2ws_out[train_idx]-->
 
-images_val   = images_out[val_idx]
-c2ws_val     = c2ws_out[val_idx]
+<!--images_val   = images_out[val_idx]-->
+<!--c2ws_val     = c2ws_out[val_idx]-->
 
-images_test  = images_out[test_idx]
-c2ws_test    = c2ws_out[test_idx]
+<!--images_test  = images_out[test_idx]-->
+<!--c2ws_test    = c2ws_out[test_idx]-->
 
-print(f"[INFO] Split: train={len(train_idx)}, val={len(val_idx)}, test(all)={N_test}")
+<!--print(f"[INFO] Split: train={len(train_idx)}, val={len(val_idx)}, test(all)={N_test}")-->
 
-# ============================================================
-# 4. 计算 focal（与你原来一致）
-# ============================================================
-focal = float((K_final[0,0] + K_final[1,1]) / 2.0)
-print(f"[INFO] focal = {focal:.3f}")
+<!--# ============================================================-->
+<!--# 4. 计算 focal（与你原来一致）-->
+<!--# ============================================================-->
+<!--focal = float((K_final[0,0] + K_final[1,1]) / 2.0)-->
+<!--print(f"[INFO] focal = {focal:.3f}")-->
 
-# ============================================================
-# 5. 保存 npz（字段完全兼容你旧代码）
-# ============================================================
-os.makedirs(OUT_DIR, exist_ok=True)
+<!--# ============================================================-->
+<!--# 5. 保存 npz（字段完全兼容你旧代码）-->
+<!--# ============================================================-->
+<!--os.makedirs(OUT_DIR, exist_ok=True)-->
 
-np.savez(
-    OUT_FILE,
+<!--np.savez(-->
+<!--    OUT_FILE,-->
 
-    images_train=images_train.astype(np.float32),
-    c2ws_train=c2ws_train.astype(np.float32),
+<!--    images_train=images_train.astype(np.float32),-->
+<!--    c2ws_train=c2ws_train.astype(np.float32),-->
 
-    images_val=images_val.astype(np.float32),
-    c2ws_val=c2ws_val.astype(np.float32),
+<!--    images_val=images_val.astype(np.float32),-->
+<!--    c2ws_val=c2ws_val.astype(np.float32),-->
 
-    images_test=images_test.astype(np.float32),
-    c2ws_test=c2ws_test.astype(np.float32),
+<!--    images_test=images_test.astype(np.float32),-->
+<!--    c2ws_test=c2ws_test.astype(np.float32),-->
 
-    focal=np.float32(focal),          # ✅ 保留你原来的字段
-    K=K_final.astype(np.float32),     # ✅ undistort + resize 后的真实内参
-    dist=np.zeros_like(dist),         # ✅ undistort 后畸变全为 0
-    H=np.int32(H),
-    W=np.int32(W),
-)
+<!--    focal=np.float32(focal),          # ✅ 保留你原来的字段-->
+<!--    K=K_final.astype(np.float32),     # ✅ undistort + resize 后的真实内参-->
+<!--    dist=np.zeros_like(dist),         # ✅ undistort 后畸变全为 0-->
+<!--    H=np.int32(H),-->
+<!--    W=np.int32(W),-->
+<!--)-->
 
-print(f"[INFO] Saved dataset → {OUT_FILE}")
-print("[DONE] Part 0.4 dataset creation complete!")
+<!--print(f"[INFO] Saved dataset → {OUT_FILE}")-->
+<!--print("[DONE] Part 0.4 dataset creation complete!")-->
 
 
-data = np.load("dataset/my_data.npz")
-print("Loaded K =\n", data["K"])
-  </pre>
+<!--data = np.load("dataset/my_data.npz")-->
+<!--print("Loaded K =\n", data["K"])-->
+<!--  </pre>-->
 
 
   <!-- ====================================================== -->
@@ -579,24 +579,24 @@ print("Loaded K =\n", data["K"])
     <div class="caption">MLP architecture used for the 2D neural field.</div>
   </div>
 
-  <h4>MLP Code</h4>
-  <pre>
-class MLP(nn.Module):
-    def __init__(self, in_dim, hidden_dim=256, out_dim=3):
-        super().__init__()
-        self.layers = nn.Sequential(
-            nn.Linear(in_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, out_dim),
-            nn.Sigmoid(),  # 输出 RGB ∈ [0, 1]
-        )
+<!--  <h4>MLP Code</h4>-->
+<!--  <pre>-->
+<!--class MLP(nn.Module):-->
+<!--    def __init__(self, in_dim, hidden_dim=256, out_dim=3):-->
+<!--        super().__init__()-->
+<!--        self.layers = nn.Sequential(-->
+<!--            nn.Linear(in_dim, hidden_dim),-->
+<!--            nn.ReLU(),-->
+<!--            nn.Linear(hidden_dim, hidden_dim),-->
+<!--            nn.ReLU(),-->
+<!--            nn.Linear(hidden_dim, out_dim),-->
+<!--            nn.Sigmoid(),  # 输出 RGB ∈ [0, 1]-->
+<!--        )-->
 
-    def forward(self, x):
-        return self.layers(x)
+<!--    def forward(self, x):-->
+<!--        return self.layers(x)-->
 
-  </pre>
+<!--  </pre>-->
 
   <h3>1.2 — Dataloader for Pixel Sampling</h3>
   <p>
@@ -608,18 +608,18 @@ class MLP(nn.Module):
     <li>Normalized RGB colors: in range [0,1]</li>
   </ul>
 
-  <h4>Dataloader Code</h4>
-  <pre>
-def sample_pixels(img, num_samples):
-    """img: numpy array [H, W, 3] (0-255)"""
-    H, W, _ = img.shape
-    xs = np.random.randint(0, W, num_samples)
-    ys = np.random.randint(0, H, num_samples)
-    coords = np.stack([xs / W, ys / H], axis=1)  # normalize
-    colors = img[ys, xs] / 255.0                 # normalize
-    return torch.tensor(coords, dtype=torch.float32), \
-           torch.tensor(colors, dtype=torch.float32)
-  </pre>
+<!--  <h4>Dataloader Code</h4>-->
+<!--  <pre>-->
+<!--def sample_pixels(img, num_samples):-->
+<!--    """img: numpy array [H, W, 3] (0-255)"""-->
+<!--    H, W, _ = img.shape-->
+<!--    xs = np.random.randint(0, W, num_samples)-->
+<!--    ys = np.random.randint(0, H, num_samples)-->
+<!--    coords = np.stack([xs / W, ys / H], axis=1)  # normalize-->
+<!--    colors = img[ys, xs] / 255.0                 # normalize-->
+<!--    return torch.tensor(coords, dtype=torch.float32), \-->
+<!--           torch.tensor(colors, dtype=torch.float32)-->
+<!--  </pre>-->
 
   <h3>1.3 — Loss, Optimizer, and Training</h3>
   <p>
@@ -632,57 +632,57 @@ def sample_pixels(img, num_samples):
     <li>Metric: Peak Signal-to-Noise Ratio (PSNR)</li>
   </ul>
 
-  <h4>Training Loop Code</h4>
-  <pre>
-in_dim = 2 * (2 * max_freq + 1)
-    model = MLP(in_dim=in_dim, hidden_dim=hidden_dim, out_dim=3).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    criterion = nn.MSELoss()
+<!--  <h4>Training Loop Code</h4>-->
+<!--  <pre>-->
+<!--in_dim = 2 * (2 * max_freq + 1)-->
+<!--    model = MLP(in_dim=in_dim, hidden_dim=hidden_dim, out_dim=3).to(device)-->
+<!--    optimizer = torch.optim.Adam(model.parameters(), lr=lr)-->
+<!--    criterion = nn.MSELoss()-->
 
-    psnr_list = []
-    save_dir = "training_vis"
-    os.makedirs(save_dir, exist_ok=True)
+<!--    psnr_list = []-->
+<!--    save_dir = "training_vis"-->
+<!--    os.makedirs(save_dir, exist_ok=True)-->
 
-    # 训练循环
-    for it in range(1, num_iters + 1):
-        coords, colors = sample_pixels(img, batch_size)
-        coords, colors = coords.to(device), colors.to(device)
+<!--    # 训练循环-->
+<!--    for it in range(1, num_iters + 1):-->
+<!--        coords, colors = sample_pixels(img, batch_size)-->
+<!--        coords, colors = coords.to(device), colors.to(device)-->
 
-        pe = positional_encoding(coords, L=max_freq).to(device)
-        pred = model(pe)
-        loss = criterion(pred, colors)
+<!--        pe = positional_encoding(coords, L=max_freq).to(device)-->
+<!--        pred = model(pe)-->
+<!--        loss = criterion(pred, colors)-->
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+<!--        optimizer.zero_grad()-->
+<!--        loss.backward()-->
+<!--        optimizer.step()-->
 
-        if it % 500 == 0 or it == 1:
-            psnr = psnr_from_mse(loss)
-            psnr_list.append(psnr.item())
-            print(f"Iter {it:04d} | Loss={loss.item():.6f} | PSNR={psnr.item():.2f} dB")
+<!--        if it % 500 == 0 or it == 1:-->
+<!--            psnr = psnr_from_mse(loss)-->
+<!--            psnr_list.append(psnr.item())-->
+<!--            print(f"Iter {it:04d} | Loss={loss.item():.6f} | PSNR={psnr.item():.2f} dB")-->
 
-            # 每100次保存重建图像
-            with torch.no_grad():
-                xs = torch.linspace(0, 1, W)
-                ys = torch.linspace(0, 1, H)
-                grid_x, grid_y = torch.meshgrid(xs, ys, indexing="xy")
-                coords_full = torch.stack([grid_x, grid_y], dim=-1).reshape(-1, 2).to(device)
-                preds = model(positional_encoding(coords_full, L=max_freq)).reshape(H, W, 3)
-                img_pred = preds.cpu().numpy()
+<!--            # 每100次保存重建图像-->
+<!--            with torch.no_grad():-->
+<!--                xs = torch.linspace(0, 1, W)-->
+<!--                ys = torch.linspace(0, 1, H)-->
+<!--                grid_x, grid_y = torch.meshgrid(xs, ys, indexing="xy")-->
+<!--                coords_full = torch.stack([grid_x, grid_y], dim=-1).reshape(-1, 2).to(device)-->
+<!--                preds = model(positional_encoding(coords_full, L=max_freq)).reshape(H, W, 3)-->
+<!--                img_pred = preds.cpu().numpy()-->
 
-                plt.figure(figsize=(6, 3))
-                plt.subplot(1, 2, 1)
-                plt.title("GT")
-                plt.imshow(img.astype(np.uint8))
-                plt.axis("off")
-                plt.subplot(1, 2, 2)
-                plt.title(f"Iter {it}")
-                plt.imshow(np.clip(img_pred, 0, 1))
-                plt.axis("off")
-                plt.tight_layout()
-                plt.savefig(f"{save_dir}/iter_{it:04d}_freq{max_freq}_w{hidden_dim}.png")
-                plt.close()
-  </pre>
+<!--                plt.figure(figsize=(6, 3))-->
+<!--                plt.subplot(1, 2, 1)-->
+<!--                plt.title("GT")-->
+<!--                plt.imshow(img.astype(np.uint8))-->
+<!--                plt.axis("off")-->
+<!--                plt.subplot(1, 2, 2)-->
+<!--                plt.title(f"Iter {it}")-->
+<!--                plt.imshow(np.clip(img_pred, 0, 1))-->
+<!--                plt.axis("off")-->
+<!--                plt.tight_layout()-->
+<!--                plt.savefig(f"{save_dir}/iter_{it:04d}_freq{max_freq}_w{hidden_dim}.png")-->
+<!--                plt.close()-->
+<!--  </pre>-->
 
 <h3>Example — Training Progression on the Staff Image</h3>
 <p>The following three images show my neural field fitting results on the staff-provided image at different training iterations:</p>
@@ -839,49 +839,49 @@ in_dim = 2 * (2 * max_freq + 1)
     $$x_c = c2w^{-1}(c2w(x_c))$$
   </p>
 
-  <h4>Camera Transform Code</h4>
-  <pre>
-import torch
-from typing import Tuple
+<!--  <h4>Camera Transform Code</h4>-->
+<!--  <pre>-->
+<!--import torch-->
+<!--from typing import Tuple-->
 
-def _to_homo(x: torch.Tensor) -> torch.Tensor:
-    """[... , 3] -> [..., 4]  末尾拼 1"""
-    ones = torch.ones_like(x[..., :1])
-    return torch.cat([x, ones], dim=-1)
+<!--def _to_homo(x: torch.Tensor) -> torch.Tensor:-->
+<!--    """[... , 3] -> [..., 4]  末尾拼 1"""-->
+<!--    ones = torch.ones_like(x[..., :1])-->
+<!--    return torch.cat([x, ones], dim=-1)-->
 
-def _from_homo(xh: torch.Tensor) -> torch.Tensor:
-    """[... , 4] -> [..., 3]  除以最后一维"""
-    w = xh[..., -1:]
-    return xh[..., :3] / w
+<!--def _from_homo(xh: torch.Tensor) -> torch.Tensor:-->
+<!--    """[... , 4] -> [..., 3]  除以最后一维"""-->
+<!--    w = xh[..., -1:]-->
+<!--    return xh[..., :3] / w-->
 
-def _normalize(v: torch.Tensor, eps: float = 1e-9) -> torch.Tensor:
-    return v / (torch.linalg.norm(v, dim=-1, keepdim=True) + eps)
+<!--def _normalize(v: torch.Tensor, eps: float = 1e-9) -> torch.Tensor:-->
+<!--    return v / (torch.linalg.norm(v, dim=-1, keepdim=True) + eps)-->
 
-# -------------------------------
-# 1) Camera -> World transform
-# -------------------------------
-def transform_points(c2w: torch.Tensor, x_c: torch.Tensor) -> torch.Tensor:
-    """
-    将相机坐标系中的点变到世界坐标系。
-    c2w: (..., 4, 4)  相机到世界的齐次矩阵
-    x_c: (..., N, 3) 相机坐标的点
-    return: (..., N, 3) 世界坐标的点
-    """
-    xh = _to_homo(x_c)                                  # (..., N, 4)
-    # 右乘：[..., N, 4] @ [..., 4, 4]^T 以便 broadcast
-    xw_h = torch.matmul(xh, c2w.transpose(-1, -2))      # (..., N, 4)
-    return _from_homo(xw_h)                              # (..., N, 3)
+<!--# -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--# 1) Camera -> World transform-->
+<!--# -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--def transform_points(c2w: torch.Tensor, x_c: torch.Tensor) -> torch.Tensor:-->
+<!--    """-->
+<!--    将相机坐标系中的点变到世界坐标系。-->
+<!--    c2w: (..., 4, 4)  相机到世界的齐次矩阵-->
+<!--    x_c: (..., N, 3) 相机坐标的点-->
+<!--    return: (..., N, 3) 世界坐标的点-->
+<!--    """-->
+<!--    xh = _to_homo(x_c)                                  # (..., N, 4)-->
+<!--    # 右乘：[..., N, 4] @ [..., 4, 4]^T 以便 broadcast-->
+<!--    xw_h = torch.matmul(xh, c2w.transpose(-1, -2))      # (..., N, 4)-->
+<!--    return _from_homo(xw_h)                              # (..., N, 3)-->
 
-def transform_points_inv(c2w: torch.Tensor, x_w: torch.Tensor) -> torch.Tensor:
-    """
-    世界 -> 相机（使用 c2w 的逆矩阵）
-    """
-    w2c = torch.linalg.inv(c2w)
-    xh = _to_homo(x_w)
-    xc_h = torch.matmul(xh, w2c.transpose(-1, -2))
-    return _from_homo(xc_h)
+<!--def transform_points_inv(c2w: torch.Tensor, x_w: torch.Tensor) -> torch.Tensor:-->
+<!--    """-->
+<!--    世界 -> 相机（使用 c2w 的逆矩阵）-->
+<!--    """-->
+<!--    w2c = torch.linalg.inv(c2w)-->
+<!--    xh = _to_homo(x_w)-->
+<!--    xc_h = torch.matmul(xh, w2c.transpose(-1, -2))-->
+<!--    return _from_homo(xc_h)-->
 
-  </pre>
+<!--  </pre>-->
 
   <h3>2.1.2 — Pixel to Camera Coordinates</h3>
   <p>
@@ -895,38 +895,38 @@ def transform_points_inv(c2w: torch.Tensor, x_w: torch.Tensor) -> torch.Tensor:
     This enables construction of ray directions.
   </p>
 
-  <h4>pixel_to_camera Code</h4>
-  <pre>
-# ----------------------------------------
-# 2) Pixel -> Camera (pinhole backproject)
-# ----------------------------------------
-def pixel_to_camera(
-    K: torch.Tensor, uv: torch.Tensor, depth: torch.Tensor
-) -> torch.Tensor:
-    """
-    将像素坐标反投影到相机坐标系下的 3D 点。
-    K: (..., 3, 3) 内参；支持单个或批量
-    uv: (..., N, 2) 像素坐标 (u, v) —— 记得外面构造时加 0.5 做像素中心偏移
-    depth: (..., N) 或标量  深度 z (>0)
-    return: (..., N, 3) 相机坐标系下 3D 点
-    公式：x_c = z * K^{-1} [u, v, 1]^T
-    """
-    # 保证 batch 维度能 broadcast
-    if depth.ndim == uv.ndim - 1:
-        depth = depth.unsqueeze(-1)  # (..., N, 1)
+<!--  <h4>pixel_to_camera Code</h4>-->
+<!--  <pre>-->
+<!--# &#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--# 2) Pixel -> Camera (pinhole backproject)-->
+<!--# &#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--def pixel_to_camera(-->
+<!--    K: torch.Tensor, uv: torch.Tensor, depth: torch.Tensor-->
+<!--) -> torch.Tensor:-->
+<!--    """-->
+<!--    将像素坐标反投影到相机坐标系下的 3D 点。-->
+<!--    K: (..., 3, 3) 内参；支持单个或批量-->
+<!--    uv: (..., N, 2) 像素坐标 (u, v) —— 记得外面构造时加 0.5 做像素中心偏移-->
+<!--    depth: (..., N) 或标量  深度 z (>0)-->
+<!--    return: (..., N, 3) 相机坐标系下 3D 点-->
+<!--    公式：x_c = z * K^{-1} [u, v, 1]^T-->
+<!--    """-->
+<!--    # 保证 batch 维度能 broadcast-->
+<!--    if depth.ndim == uv.ndim - 1:-->
+<!--        depth = depth.unsqueeze(-1)  # (..., N, 1)-->
 
-    # 构造齐次像素
-    ones = torch.ones_like(uv[..., :1])
-    uv1 = torch.cat([uv, ones], dim=-1)                 # (..., N, 3)
+<!--    # 构造齐次像素-->
+<!--    ones = torch.ones_like(uv[..., :1])-->
+<!--    uv1 = torch.cat([uv, ones], dim=-1)                 # (..., N, 3)-->
 
-    # K^{-1}
-    Kinv = torch.linalg.inv(K)                          # (..., 3, 3)
-    # 右乘：[..., N, 3] @ [..., 3, 3]^T
-    dirs = torch.matmul(uv1, Kinv.transpose(-1, -2))    # (..., N, 3)
-    x_c = dirs * depth                                  # 缩放到给定深度
-    return x_c
+<!--    # K^{-1}-->
+<!--    Kinv = torch.linalg.inv(K)                          # (..., 3, 3)-->
+<!--    # 右乘：[..., N, 3] @ [..., 3, 3]^T-->
+<!--    dirs = torch.matmul(uv1, Kinv.transpose(-1, -2))    # (..., N, 3)-->
+<!--    x_c = dirs * depth                                  # 缩放到给定深度-->
+<!--    return x_c-->
 
-  </pre>
+<!--  </pre>-->
 
   <h3>2.1.3 — Pixel-to-Ray Conversion</h3>
   <p>
@@ -942,44 +942,44 @@ def pixel_to_camera(
 </div>
 
 
-  <h4>pixel_to_ray Code</h4>
-  <pre>
-# ----------------------------------------
-# 3) Pixel -> Ray (origin, normalized dir)
-# ----------------------------------------
-def pixel_to_ray(
-    K: torch.Tensor, c2w: torch.Tensor, uv: torch.Tensor
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    """
-    将像素坐标转换为世界坐标系下的光线 (ray_o, ray_d)。
-    K:   (..., 3, 3)
-    c2w: (..., 4, 4)
-    uv:  (..., N, 2) 像素坐标 (u, v) —— 外面采样时请加 0.5 做像素中心
-    return:
-      ray_o: (..., N, 3) 光线原点（相机中心）
-      ray_d: (..., N, 3) 归一化光线方向（世界坐标系）
-    步骤：
-      1) 在相机系选取 z=1 的点：x_c = K^{-1}[u, v, 1]^T
-      2) 变换到世界系：x_w = c2w * x_c
-      3) 相机中心 o = c2w[:3, 3]
-      4) 方向 d = normalize(x_w - o)
-    """
-    # 相机中心（世界系）
-    o_w = c2w[..., :3, 3]                               # (..., 3)
-    # 先在相机系取 z=1 的点
-    ones = torch.ones_like(uv[..., :1])
-    uv1 = torch.cat([uv, ones], dim=-1)                 # (..., N, 3)
-    Kinv = torch.linalg.inv(K)                          # (..., 3, 3)
-    xc = torch.matmul(uv1, Kinv.transpose(-1, -2))      # (..., N, 3), depth=1
+<!--  <h4>pixel_to_ray Code</h4>-->
+<!--  <pre>-->
+<!--# &#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--# 3) Pixel -> Ray (origin, normalized dir)-->
+<!--# &#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--def pixel_to_ray(-->
+<!--    K: torch.Tensor, c2w: torch.Tensor, uv: torch.Tensor-->
+<!--) -> Tuple[torch.Tensor, torch.Tensor]:-->
+<!--    """-->
+<!--    将像素坐标转换为世界坐标系下的光线 (ray_o, ray_d)。-->
+<!--    K:   (..., 3, 3)-->
+<!--    c2w: (..., 4, 4)-->
+<!--    uv:  (..., N, 2) 像素坐标 (u, v) —— 外面采样时请加 0.5 做像素中心-->
+<!--    return:-->
+<!--      ray_o: (..., N, 3) 光线原点（相机中心）-->
+<!--      ray_d: (..., N, 3) 归一化光线方向（世界坐标系）-->
+<!--    步骤：-->
+<!--      1) 在相机系选取 z=1 的点：x_c = K^{-1}[u, v, 1]^T-->
+<!--      2) 变换到世界系：x_w = c2w * x_c-->
+<!--      3) 相机中心 o = c2w[:3, 3]-->
+<!--      4) 方向 d = normalize(x_w - o)-->
+<!--    """-->
+<!--    # 相机中心（世界系）-->
+<!--    o_w = c2w[..., :3, 3]                               # (..., 3)-->
+<!--    # 先在相机系取 z=1 的点-->
+<!--    ones = torch.ones_like(uv[..., :1])-->
+<!--    uv1 = torch.cat([uv, ones], dim=-1)                 # (..., N, 3)-->
+<!--    Kinv = torch.linalg.inv(K)                          # (..., 3, 3)-->
+<!--    xc = torch.matmul(uv1, Kinv.transpose(-1, -2))      # (..., N, 3), depth=1-->
 
-    # 相机 -> 世界
-    xw = transform_points(c2w, xc)                      # (..., N, 3)
+<!--    # 相机 -> 世界-->
+<!--    xw = transform_points(c2w, xc)                      # (..., N, 3)-->
 
-    # 原点 broadcast 到 N
-    ray_o = o_w.unsqueeze(-2).expand_as(xw)             # (..., N, 3)
-    ray_d = _normalize(xw - ray_o)                      # (..., N, 3)
-    return ray_o, ray_d
-  </pre>
+<!--    # 原点 broadcast 到 N-->
+<!--    ray_o = o_w.unsqueeze(-2).expand_as(xw)             # (..., N, 3)-->
+<!--    ray_d = _normalize(xw - ray_o)                      # (..., N, 3)-->
+<!--    return ray_o, ray_d-->
+<!--  </pre>-->
 
 
   <!-- ====================================================== -->
@@ -993,79 +993,79 @@ def pixel_to_ray(
     During training I enable stratified perturbation to improve coverage.
   </p>
 
-  <h4>sample_along_rays Code</h4>
-  <pre>
-# sample_along_rays.py
-import torch
+<!--  <h4>sample_along_rays Code</h4>-->
+<!--  <pre>-->
+<!--# sample_along_rays.py-->
+<!--import torch-->
 
-def sample_along_rays(
-    rays_o: torch.Tensor,
-    rays_d: torch.Tensor,
-    n_samples: int = 64,
-    near: float = 2.0,
-    far: float = 6.0,
-    perturb: bool = True,
-    weights: torch.Tensor = None,
-) -> torch.Tensor:
-    """
-    Uniform or importance sampling of 3D points along rays.
-    Args:
-        rays_o: (B, 3) 光线原点
-        rays_d: (B, 3) 光线方向（单位向量）
-        n_samples: 每条光线上的采样点数
-        near, far: 采样深度范围
-        perturb: 是否添加随机扰动（用于训练）
-        weights: (B, M) 可选，若提供则基于 coarse 权重做重要性重采样
+<!--def sample_along_rays(-->
+<!--    rays_o: torch.Tensor,-->
+<!--    rays_d: torch.Tensor,-->
+<!--    n_samples: int = 64,-->
+<!--    near: float = 2.0,-->
+<!--    far: float = 6.0,-->
+<!--    perturb: bool = True,-->
+<!--    weights: torch.Tensor = None,-->
+<!--) -> torch.Tensor:-->
+<!--    """-->
+<!--    Uniform or importance sampling of 3D points along rays.-->
+<!--    Args:-->
+<!--        rays_o: (B, 3) 光线原点-->
+<!--        rays_d: (B, 3) 光线方向（单位向量）-->
+<!--        n_samples: 每条光线上的采样点数-->
+<!--        near, far: 采样深度范围-->
+<!--        perturb: 是否添加随机扰动（用于训练）-->
+<!--        weights: (B, M) 可选，若提供则基于 coarse 权重做重要性重采样-->
 
-    Returns:
-        points: (B, n_samples, 3) 采样的3D点
-        t_vals: (B, n_samples) 深度参数
-    """
-    device = rays_o.device
-    B = rays_o.shape[0]
+<!--    Returns:-->
+<!--        points: (B, n_samples, 3) 采样的3D点-->
+<!--        t_vals: (B, n_samples) 深度参数-->
+<!--    """-->
+<!--    device = rays_o.device-->
+<!--    B = rays_o.shape[0]-->
 
-    # ====== 若无权重，使用均匀采样 ======
-    if weights is None:
-        t_vals = torch.linspace(near, far, n_samples, device=device)
-        t_vals = t_vals.expand(B, n_samples)
+<!--    # ====== 若无权重，使用均匀采样 ======-->
+<!--    if weights is None:-->
+<!--        t_vals = torch.linspace(near, far, n_samples, device=device)-->
+<!--        t_vals = t_vals.expand(B, n_samples)-->
 
-        if perturb:
-            mids = 0.5 * (t_vals[:, 1:] + t_vals[:, :-1])
-            upper = torch.cat([mids, t_vals[:, -1:]], dim=-1)
-            lower = torch.cat([t_vals[:, :1], mids], dim=-1)
-            t_rand = torch.rand(t_vals.shape, device=device)
-            t_vals = lower + (upper - lower) * t_rand
-    else:
-        # ====== 若有权重，按 PDF / CDF 重采样 ======
-        weights = weights + 1e-8  # 防止除0
-        pdf = weights / torch.sum(weights, dim=1, keepdim=True)
-        cdf = torch.cumsum(pdf, dim=1)
-        cdf = torch.cat([torch.zeros_like(cdf[:, :1]), cdf], dim=-1)  # (B, M+1)
+<!--        if perturb:-->
+<!--            mids = 0.5 * (t_vals[:, 1:] + t_vals[:, :-1])-->
+<!--            upper = torch.cat([mids, t_vals[:, -1:]], dim=-1)-->
+<!--            lower = torch.cat([t_vals[:, :1], mids], dim=-1)-->
+<!--            t_rand = torch.rand(t_vals.shape, device=device)-->
+<!--            t_vals = lower + (upper - lower) * t_rand-->
+<!--    else:-->
+<!--        # ====== 若有权重，按 PDF / CDF 重采样 ======-->
+<!--        weights = weights + 1e-8  # 防止除0-->
+<!--        pdf = weights / torch.sum(weights, dim=1, keepdim=True)-->
+<!--        cdf = torch.cumsum(pdf, dim=1)-->
+<!--        cdf = torch.cat([torch.zeros_like(cdf[:, :1]), cdf], dim=-1)  # (B, M+1)-->
 
-        # 在 [0,1] 均匀采样 n_samples 个随机数
-        u = torch.rand(B, n_samples, device=device)
-        inds = torch.searchsorted(cdf, u, right=True)
-        inds = torch.clamp(inds, 1, cdf.shape[-1]-1)
+<!--        # 在 [0,1] 均匀采样 n_samples 个随机数-->
+<!--        u = torch.rand(B, n_samples, device=device)-->
+<!--        inds = torch.searchsorted(cdf, u, right=True)-->
+<!--        inds = torch.clamp(inds, 1, cdf.shape[-1]-1)-->
 
-        below = inds - 1
-        above = inds
-        cdf_g = torch.gather(cdf, 1, above) - torch.gather(cdf, 1, below)
-        denom = torch.where(cdf_g < 1e-5, torch.ones_like(cdf_g), cdf_g)
-        cdf_below = torch.gather(cdf, 1, below)
-        cdf_above = torch.gather(cdf, 1, above)
-        u_expand = u
-        t = (u_expand - cdf_below) / denom
-        # 将 [0,1] 映射回 [near, far]
-        bins = torch.linspace(near, far, weights.shape[1], device=device)
-        bins_below = torch.gather(bins.expand(B, -1), 1, below)
-        bins_above = torch.gather(bins.expand(B, -1), 1, above)
-        t_vals = bins_below + t * (bins_above - bins_below)
+<!--        below = inds - 1-->
+<!--        above = inds-->
+<!--        cdf_g = torch.gather(cdf, 1, above) - torch.gather(cdf, 1, below)-->
+<!--        denom = torch.where(cdf_g < 1e-5, torch.ones_like(cdf_g), cdf_g)-->
+<!--        cdf_below = torch.gather(cdf, 1, below)-->
+<!--        cdf_above = torch.gather(cdf, 1, above)-->
+<!--        u_expand = u-->
+<!--        t = (u_expand - cdf_below) / denom-->
+<!--        # 将 [0,1] 映射回 [near, far]-->
+<!--        bins = torch.linspace(near, far, weights.shape[1], device=device)-->
+<!--        bins_below = torch.gather(bins.expand(B, -1), 1, below)-->
+<!--        bins_above = torch.gather(bins.expand(B, -1), 1, above)-->
+<!--        t_vals = bins_below + t * (bins_above - bins_below)-->
 
-    # ===== 计算采样点 =====
-    points = rays_o.unsqueeze(1) + rays_d.unsqueeze(1) * t_vals.unsqueeze(-1)
-    return points, t_vals
+<!--    # ===== 计算采样点 =====-->
+<!--    points = rays_o.unsqueeze(1) + rays_d.unsqueeze(1) * t_vals.unsqueeze(-1)-->
+<!--    return points, t_vals-->
 
-  </pre>
+<!--  </pre>-->
 
 <h3>2.3 — Visualizing Rays and Sampled Points</h3>
 
@@ -1084,26 +1084,26 @@ def sample_along_rays(
   using uniform depth sampling.
 </p>
 
-<pre><code class="language-python">
-# Load data
-data = np.load("dataset/my_data.npz")
-images_train = data["images_train"] / 255.0
-c2ws_train   = data["c2ws_train"]
-K            = data["K"]
-dist         = data["dist"]
+<!--<pre><code class="language-python">-->
+<!--# Load data-->
+<!--data = np.load("dataset/my_data.npz")-->
+<!--images_train = data["images_train"] / 255.0-->
+<!--c2ws_train   = data["c2ws_train"]-->
+<!--K            = data["K"]-->
+<!--dist         = data["dist"]-->
 
-dataset = RaysData(images_train, K, c2ws_train)
+<!--dataset = RaysData(images_train, K, c2ws_train)-->
 
-# Random rays
-rays_o, rays_d, pixels = dataset.sample_rays(100)
+<!--# Random rays-->
+<!--rays_o, rays_d, pixels = dataset.sample_rays(100)-->
 
-# Sample 3D points along rays
-points, _ = sample_along_rays(
-    rays_o, rays_d,
-    perturb=False,
-    near=0.001, far=0.5
-)
-</code></pre>
+<!--# Sample 3D points along rays-->
+<!--points, _ = sample_along_rays(-->
+<!--    rays_o, rays_d,-->
+<!--    perturb=False,-->
+<!--    near=0.001, far=0.5-->
+<!--)-->
+<!--</code></pre>-->
 
 <h4>Adding Cameras and Rays to the Viewer</h4>
 <p>
@@ -1111,28 +1111,28 @@ points, _ = sample_along_rays(
   Each sampled ray is drawn as a short colored line for easy inspection.
 </p>
 
-<pre><code class="language-python">
-server = viser.ViserServer(share=False)
+<!--<pre><code class="language-python">-->
+<!--server = viser.ViserServer(share=False)-->
 
-# Camera frustums
-for i, (img, c2w) in enumerate(zip(images_train, c2ws_train)):
-    server.scene.add_camera_frustum(
-        f"/cameras/{i}",
-        fov=2 * np.arctan2(images_train.shape[1] / 2, K[0, 0]),
-        aspect=images_train.shape[2] / images_train.shape[1],
-        scale=0.02,
-        wxyz=viser.transforms.SO3.from_matrix(c2w[:3, :3]).wxyz,
-        position=c2w[:3, 3],
-        image=img[..., ::-1],    # BGR → RGB
-    )
+<!--# Camera frustums-->
+<!--for i, (img, c2w) in enumerate(zip(images_train, c2ws_train)):-->
+<!--    server.scene.add_camera_frustum(-->
+<!--        f"/cameras/{i}",-->
+<!--        fov=2 * np.arctan2(images_train.shape[1] / 2, K[0, 0]),-->
+<!--        aspect=images_train.shape[2] / images_train.shape[1],-->
+<!--        scale=0.02,-->
+<!--        wxyz=viser.transforms.SO3.from_matrix(c2w[:3, :3]).wxyz,-->
+<!--        position=c2w[:3, 3],-->
+<!--        image=img[..., ::-1],    # BGR → RGB-->
+<!--    )-->
 
-# Rays
-for i, (o, d) in enumerate(zip(rays_o, rays_d)):
-    server.scene.add_spline_catmull_rom(
-        f"/rays/{i}",
-        positions=np.stack([o, o + d * 4.0])
-    )
-</code></pre>
+<!--# Rays-->
+<!--for i, (o, d) in enumerate(zip(rays_o, rays_d)):-->
+<!--    server.scene.add_spline_catmull_rom(-->
+<!--        f"/rays/{i}",-->
+<!--        positions=np.stack([o, o + d * 4.0])-->
+<!--    )-->
+<!--</code></pre>-->
 
 <h4>Visualizing Sampled 3D Points</h4>
 <p>
@@ -1141,15 +1141,15 @@ for i, (o, d) in enumerate(zip(rays_o, rays_d)):
   is properly chosen for our dataset.
 </p>
 
-<pre><code class="language-python">
-points_np = points.cpu().numpy().reshape(-1, 3)
-server.scene.add_point_cloud(
-    "/samples",
-    colors=np.zeros_like(points_np),
-    points=points_np,
-    point_size=0.005,
-)
-</code></pre>
+<!--<pre><code class="language-python">-->
+<!--points_np = points.cpu().numpy().reshape(-1, 3)-->
+<!--server.scene.add_point_cloud(-->
+<!--    "/samples",-->
+<!--    colors=np.zeros_like(points_np),-->
+<!--    points=points_np,-->
+<!--    point_size=0.005,-->
+<!--)-->
+<!--</code></pre>-->
 
 <p>
   Opening the viewer reveals the camera positions, rays shooting into the scene,
@@ -1222,174 +1222,174 @@ server.scene.add_point_cloud(
 <h4>Code</h4>
 <p>The full implementation is shown below:</p>
 
-<pre><code class="language-python">
-# nerf_network.py
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from typing import Tuple
+<!--<pre><code class="language-python">-->
+<!--# nerf_network.py-->
+<!--import torch-->
+<!--import torch.nn as nn-->
+<!--import torch.nn.functional as F-->
+<!--from typing import Tuple-->
 
-# -------------------------
-# Positional Encoding (PE)
-# -------------------------
-class PositionalEncoding(nn.Module):
-    """
-    For each input x in R^C, output:
-    [x, sin(2^0 pi x), cos(2^0 pi x), ..., sin(2^{L-1} pi x), cos(2^{L-1} pi x)]
-    Output dim = C * (2*L + 1)
-    """
-    def __init__(self, num_freqs: int):
-        super().__init__()
-        self.num_freqs = num_freqs
-        # register buffers for frequencies
-        freqs = 2.0 ** torch.arange(num_freqs).float() * torch.pi  # [L]
-        self.register_buffer("freqs", freqs)
+<!--# -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--# Positional Encoding (PE)-->
+<!--# -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--class PositionalEncoding(nn.Module):-->
+<!--    """-->
+<!--    For each input x in R^C, output:-->
+<!--    [x, sin(2^0 pi x), cos(2^0 pi x), ..., sin(2^{L-1} pi x), cos(2^{L-1} pi x)]-->
+<!--    Output dim = C * (2*L + 1)-->
+<!--    """-->
+<!--    def __init__(self, num_freqs: int):-->
+<!--        super().__init__()-->
+<!--        self.num_freqs = num_freqs-->
+<!--        # register buffers for frequencies-->
+<!--        freqs = 2.0 ** torch.arange(num_freqs).float() * torch.pi  # [L]-->
+<!--        self.register_buffer("freqs", freqs)-->
 
-    @property
-    def out_dim(self) -> int:
-        # original + sin/cos pairs
-        return None  # filled in forward from input dim
+<!--    @property-->
+<!--    def out_dim(self) -> int:-->
+<!--        # original + sin/cos pairs-->
+<!--        return None  # filled in forward from input dim-->
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        x: (..., C)
-        return: (..., C * (2*L + 1))
-        """
-        # original term
-        outs = [x]
-        # sin/cos for each freq
-        for f in self.freqs:
-            outs.append(torch.sin(f * x))
-            outs.append(torch.cos(f * x))
-        return torch.cat(outs, dim=-1)
+<!--    def forward(self, x: torch.Tensor) -> torch.Tensor:-->
+<!--        """-->
+<!--        x: (..., C)-->
+<!--        return: (..., C * (2*L + 1))-->
+<!--        """-->
+<!--        # original term-->
+<!--        outs = [x]-->
+<!--        # sin/cos for each freq-->
+<!--        for f in self.freqs:-->
+<!--            outs.append(torch.sin(f * x))-->
+<!--            outs.append(torch.cos(f * x))-->
+<!--        return torch.cat(outs, dim=-1)-->
 
-def pe_out_dim(input_dim: int, L: int) -> int:
-    return input_dim * (2 * L + 1)
+<!--def pe_out_dim(input_dim: int, L: int) -> int:-->
+<!--    return input_dim * (2 * L + 1)-->
 
-# -------------------------
-# NeRF MLP (coarse/fine同构)
-# -------------------------
-class NeRF(nn.Module):
-    """
-    NeRF-style network with:
-      - deeper coordinate tower with skip at layer 4
-      - density (sigma) head from tower features (ReLU)
-      - color head conditioned on view direction encoding (Sigmoid)
-    Inputs:
-      x: world coords (..., 3)
-      d: view dirs   (..., 3), will be normalized inside
-    """
-    def __init__(
-        self,
-        W: int = 256,           # width
-        D: int = 8,             # depth (layers)
-        skips: Tuple[int, ...] = (4,),
-        Lx: int = 10,           # PE freq for coords
-        Ld: int = 4,            # PE freq for dirs (smaller)
-    ):
-        super().__init__()
-        self.W, self.D, self.skips, self.Lx, self.Ld = W, D, skips, Lx, Ld
+<!--# -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--# NeRF MLP (coarse/fine同构)-->
+<!--# -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--class NeRF(nn.Module):-->
+<!--    """-->
+<!--    NeRF-style network with:-->
+<!--      - deeper coordinate tower with skip at layer 4-->
+<!--      - density (sigma) head from tower features (ReLU)-->
+<!--      - color head conditioned on view direction encoding (Sigmoid)-->
+<!--    Inputs:-->
+<!--      x: world coords (..., 3)-->
+<!--      d: view dirs   (..., 3), will be normalized inside-->
+<!--    """-->
+<!--    def __init__(-->
+<!--        self,-->
+<!--        W: int = 256,           # width-->
+<!--        D: int = 8,             # depth (layers)-->
+<!--        skips: Tuple[int, ...] = (4,),-->
+<!--        Lx: int = 10,           # PE freq for coords-->
+<!--        Ld: int = 4,            # PE freq for dirs (smaller)-->
+<!--    ):-->
+<!--        super().__init__()-->
+<!--        self.W, self.D, self.skips, self.Lx, self.Ld = W, D, skips, Lx, Ld-->
 
-        in_x = pe_out_dim(3, Lx)   # 3 * (2*Lx+1)
-        in_d = pe_out_dim(3, Ld)   # 3 * (2*Ld+1)
+<!--        in_x = pe_out_dim(3, Lx)   # 3 * (2*Lx+1)-->
+<!--        in_d = pe_out_dim(3, Ld)   # 3 * (2*Ld+1)-->
 
-        # coordinate tower with skip at layer 4
-        layers = []
-        dim_in = in_x
-        for i in range(D):
-            if i in skips:
-                dim_in = in_x + W  # concat input PE later
-            layers.append(nn.Linear(dim_in, W))
-            dim_in = W
-        self.layers = nn.ModuleList(layers)
+<!--        # coordinate tower with skip at layer 4-->
+<!--        layers = []-->
+<!--        dim_in = in_x-->
+<!--        for i in range(D):-->
+<!--            if i in skips:-->
+<!--                dim_in = in_x + W  # concat input PE later-->
+<!--            layers.append(nn.Linear(dim_in, W))-->
+<!--            dim_in = W-->
+<!--        self.layers = nn.ModuleList(layers)-->
 
-        # sigma (density) head
-        self.sigma_head = nn.Linear(W, 1)
+<!--        # sigma (density) head-->
+<!--        self.sigma_head = nn.Linear(W, 1)-->
 
-        # feature for color branch
-        self.feature_head = nn.Linear(W, W)
+<!--        # feature for color branch-->
+<!--        self.feature_head = nn.Linear(W, W)-->
 
-        # color head: features (+ dir PE) -> 128 -> rgb
-        self.color_fc = nn.Sequential(
-            nn.Linear(W + in_d, 128),
-            nn.ReLU(True),
-            nn.Linear(128, 3)
-        )
+<!--        # color head: features (+ dir PE) -> 128 -> rgb-->
+<!--        self.color_fc = nn.Sequential(-->
+<!--            nn.Linear(W + in_d, 128),-->
+<!--            nn.ReLU(True),-->
+<!--            nn.Linear(128, 3)-->
+<!--        )-->
 
-        # encoders
-        self.pe_x = PositionalEncoding(Lx)
-        self.pe_d = PositionalEncoding(Ld)
+<!--        # encoders-->
+<!--        self.pe_x = PositionalEncoding(Lx)-->
+<!--        self.pe_d = PositionalEncoding(Ld)-->
 
-        # init
-        self._init_weights()
+<!--        # init-->
+<!--        self._init_weights()-->
 
-    def _init_weights(self):
-        def init_lin(m):
-            if isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                nn.init.zeros_(m.bias)
-        self.apply(init_lin)
+<!--    def _init_weights(self):-->
+<!--        def init_lin(m):-->
+<!--            if isinstance(m, nn.Linear):-->
+<!--                nn.init.xavier_uniform_(m.weight)-->
+<!--                nn.init.zeros_(m.bias)-->
+<!--        self.apply(init_lin)-->
 
-    def forward(self, x: torch.Tensor, d: torch.Tensor):
-        """
-        x: (..., 3) world coords
-        d: (..., 3) view dirs
-        returns:
-          sigma: (..., 1)  (non-negative)
-          rgb:   (..., 3)  (in [0,1])
-        """
-        orig_shape = x.shape[:-1]  # keep for reshape back
-        x = x.reshape(-1, 3)
-        d = d.reshape(-1, 3)
+<!--    def forward(self, x: torch.Tensor, d: torch.Tensor):-->
+<!--        """-->
+<!--        x: (..., 3) world coords-->
+<!--        d: (..., 3) view dirs-->
+<!--        returns:-->
+<!--          sigma: (..., 1)  (non-negative)-->
+<!--          rgb:   (..., 3)  (in [0,1])-->
+<!--        """-->
+<!--        orig_shape = x.shape[:-1]  # keep for reshape back-->
+<!--        x = x.reshape(-1, 3)-->
+<!--        d = d.reshape(-1, 3)-->
 
-        # normalize dirs
-        d = d / (torch.linalg.norm(d, dim=-1, keepdim=True) + 1e-9)
+<!--        # normalize dirs-->
+<!--        d = d / (torch.linalg.norm(d, dim=-1, keepdim=True) + 1e-9)-->
 
-        # encodings
-        x_enc = self.pe_x(x)      # [N, in_x]
-        d_enc = self.pe_d(d)      # [N, in_d]
+<!--        # encodings-->
+<!--        x_enc = self.pe_x(x)      # [N, in_x]-->
+<!--        d_enc = self.pe_d(d)      # [N, in_d]-->
 
-        # coordinate tower with skip
-        h = x_enc
-        idx_layer_in = 0
-        for i, layer in enumerate(self.layers):
-            if i in self.skips:
-                h = torch.cat([h, x_enc], dim=-1)
-            h = layer(h)
-            h = F.relu(h, inplace=True)
+<!--        # coordinate tower with skip-->
+<!--        h = x_enc-->
+<!--        idx_layer_in = 0-->
+<!--        for i, layer in enumerate(self.layers):-->
+<!--            if i in self.skips:-->
+<!--                h = torch.cat([h, x_enc], dim=-1)-->
+<!--            h = layer(h)-->
+<!--            h = F.relu(h, inplace=True)-->
 
-        # sigma & features
-        sigma = F.relu(self.sigma_head(h), inplace=False)  # non-negative
-        feat  = F.relu(self.feature_head(h), inplace=True)
+<!--        # sigma & features-->
+<!--        sigma = F.relu(self.sigma_head(h), inplace=False)  # non-negative-->
+<!--        feat  = F.relu(self.feature_head(h), inplace=True)-->
 
-        # color branch conditioned on view dir
-        h_col = torch.cat([feat, d_enc], dim=-1)
-        rgb   = torch.sigmoid(self.color_fc(h_col))
+<!--        # color branch conditioned on view dir-->
+<!--        h_col = torch.cat([feat, d_enc], dim=-1)-->
+<!--        rgb   = torch.sigmoid(self.color_fc(h_col))-->
 
-        # reshape back
-        sigma = sigma.view(*orig_shape, 1)
-        rgb   = rgb.view(*orig_shape, 3)
-        return sigma, rgb
+<!--        # reshape back-->
+<!--        sigma = sigma.view(*orig_shape, 1)-->
+<!--        rgb   = rgb.view(*orig_shape, 3)-->
+<!--        return sigma, rgb-->
 
-    @property
-    def num_params(self) -> int:
-        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+<!--    @property-->
+<!--    def num_params(self) -> int:-->
+<!--        return sum(p.numel() for p in self.parameters() if p.requires_grad)-->
 
-if __name__ == "__main__":
-    import torch
-    model = NeRF(W=256, D=8, Lx=10, Ld=4)
-    print("Params:", model.num_params)
+<!--if __name__ == "__main__":-->
+<!--    import torch-->
+<!--    model = NeRF(W=256, D=8, Lx=10, Ld=4)-->
+<!--    print("Params:", model.num_params)-->
 
-    # batch of 10 rays × 64 samples
-    B, S = 10, 64
-    x = torch.randn(B, S, 3)
-    d = torch.randn(B, S, 3)
-    sigma, rgb = model(x, d)
+<!--    # batch of 10 rays × 64 samples-->
+<!--    B, S = 10, 64-->
+<!--    x = torch.randn(B, S, 3)-->
+<!--    d = torch.randn(B, S, 3)-->
+<!--    sigma, rgb = model(x, d)-->
 
-    print("sigma:", sigma.shape, sigma.min().item(), sigma.max().item())  # (10,64,1) >= 0
-    print("rgb:",   rgb.shape,   rgb.min().item(),   rgb.max().item())    # (10,64,3) ~ [0,1]
+<!--    print("sigma:", sigma.shape, sigma.min().item(), sigma.max().item())  # (10,64,1) >= 0-->
+<!--    print("rgb:",   rgb.shape,   rgb.min().item(),   rgb.max().item())    # (10,64,3) ~ [0,1]-->
 
-</code></pre>
+<!--</code></pre>-->
 
 <p>
   This network produces valid densities (non-negative) and colors (bounded in [0,1]),
@@ -1442,46 +1442,46 @@ if __name__ == "__main__":
   <li>Background color: if desired, add <code>T<sub>final</sub> · bg</code> after the sum.</li>
 </ul>
 
-  <h4>volrend() Implementation (PyTorch)</h4>
-  <pre>
-# volume_render.py
-import torch
+<!--  <h4>volrend() Implementation (PyTorch)</h4>-->
+<!--  <pre>-->
+<!--# volume_render.py-->
+<!--import torch-->
 
-def volrend(sigmas: torch.Tensor, rgbs: torch.Tensor, step_size: float) -> torch.Tensor:
-    """
-    Volumetric rendering for a batch of rays.
-    Args:
-        sigmas: (B, S, 1) density σ >= 0
-        rgbs:   (B, S, 3) color in [0,1]
-        step_size: float, ∆t between adjacent samples along ray
+<!--def volrend(sigmas: torch.Tensor, rgbs: torch.Tensor, step_size: float) -> torch.Tensor:-->
+<!--    """-->
+<!--    Volumetric rendering for a batch of rays.-->
+<!--    Args:-->
+<!--        sigmas: (B, S, 1) density σ >= 0-->
+<!--        rgbs:   (B, S, 3) color in [0,1]-->
+<!--        step_size: float, ∆t between adjacent samples along ray-->
 
-    Returns:
-        rendered_colors: (B, 3)
-    """
-    
-    # Implemented in torch for backprop.
+<!--    Returns:-->
+<!--        rendered_colors: (B, 3)-->
+<!--    """-->
+<!--    -->
+<!--    # Implemented in torch for backprop.-->
 
-    # (B, S, 1)
-    alphas = 1.0 - torch.exp(-sigmas * step_size)
+<!--    # (B, S, 1)-->
+<!--    alphas = 1.0 - torch.exp(-sigmas * step_size)-->
 
-    # (B, S) for cumulative products
-    alphas = alphas.squeeze(-1)  # (B, S)
+<!--    # (B, S) for cumulative products-->
+<!--    alphas = alphas.squeeze(-1)  # (B, S)-->
 
-    # Compute transmittance T_i: cumprod over (1 - alpha), shifted by 1 with T_0=1
-    # torch.cumprod is inclusive, so we shift by concatenating a leading 1
-    one_minus_alpha = 1.0 - alphas  # (B, S)
+<!--    # Compute transmittance T_i: cumprod over (1 - alpha), shifted by 1 with T_0=1-->
+<!--    # torch.cumprod is inclusive, so we shift by concatenating a leading 1-->
+<!--    one_minus_alpha = 1.0 - alphas  # (B, S)-->
 
-    T_prefix = torch.cumprod(
-        torch.cat([torch.ones_like(one_minus_alpha[:, :1]), one_minus_alpha + 1e-10], dim=1),
-        dim=1
-    )[:, :-1]  # (B, S)
+<!--    T_prefix = torch.cumprod(-->
+<!--        torch.cat([torch.ones_like(one_minus_alpha[:, :1]), one_minus_alpha + 1e-10], dim=1),-->
+<!--        dim=1-->
+<!--    )[:, :-1]  # (B, S)-->
 
-    weights = T_prefix * alphas  # (B, S)
+<!--    weights = T_prefix * alphas  # (B, S)-->
 
-    # Composite colors
-    rendered = torch.sum(weights.unsqueeze(-1) * rgbs, dim=1)  # (B, 3)
-    return rendered
- </pre>
+<!--    # Composite colors-->
+<!--    rendered = torch.sum(weights.unsqueeze(-1) * rgbs, dim=1)  # (B, 3)-->
+<!--    return rendered-->
+<!-- </pre>-->
 
 
   <!-- ====================================================== -->
@@ -1504,53 +1504,53 @@ def volrend(sigmas: torch.Tensor, rgbs: torch.Tensor, step_size: float) -> torch
     I normalize UVs to pixel centers by adding 0.5 offsets and map UV → rays via my <code>pixel_to_ray</code>.
   </p>
 
-  <h4>RaysData and Sampling Code</h4>
-  <pre>
-def sample_random_rays_global(
-    images: np.ndarray,   # (N,H,W,3) in [0,1]
-    K: np.ndarray,        # (3,3)
-    c2ws: np.ndarray,     # (N,4,4)
-    n_rays: int,
-    device: str,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """
-    从所有训练图像里全局随机采样 n_rays 条光线
-    返回:
-      rays_o: (n_rays,3), rays_d: (n_rays,3), target_rgb: (n_rays,3)
-    """
-    N, H, W, _ = images.shape
-    # 随机选择图像 & 像素
-    img_ids = np.random.randint(0, N, size=(n_rays,))
-    us = np.random.randint(0, W, size=(n_rays,))
-    vs = np.random.randint(0, H, size=(n_rays,))
+<!--  <h4>RaysData and Sampling Code</h4>-->
+<!--  <pre>-->
+<!--def sample_random_rays_global(-->
+<!--    images: np.ndarray,   # (N,H,W,3) in [0,1]-->
+<!--    K: np.ndarray,        # (3,3)-->
+<!--    c2ws: np.ndarray,     # (N,4,4)-->
+<!--    n_rays: int,-->
+<!--    device: str,-->
+<!--) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:-->
+<!--    """-->
+<!--    从所有训练图像里全局随机采样 n_rays 条光线-->
+<!--    返回:-->
+<!--      rays_o: (n_rays,3), rays_d: (n_rays,3), target_rgb: (n_rays,3)-->
+<!--    """-->
+<!--    N, H, W, _ = images.shape-->
+<!--    # 随机选择图像 & 像素-->
+<!--    img_ids = np.random.randint(0, N, size=(n_rays,))-->
+<!--    us = np.random.randint(0, W, size=(n_rays,))-->
+<!--    vs = np.random.randint(0, H, size=(n_rays,))-->
 
-    # 目标颜色
-    target = images[img_ids, vs, us]   # (n_rays,3)
+<!--    # 目标颜色-->
+<!--    target = images[img_ids, vs, us]   # (n_rays,3)-->
 
-    # 统一 K（lego 恒定），逐图批量生成光线
-    K_t = to_torch32(K, device)
-    uvs = np.stack([us + 0.5, vs + 0.5], axis=1)
-    uvs_t = torch.tensor(uvs, dtype=torch.float32, device=device)
+<!--    # 统一 K（lego 恒定），逐图批量生成光线-->
+<!--    K_t = to_torch32(K, device)-->
+<!--    uvs = np.stack([us + 0.5, vs + 0.5], axis=1)-->
+<!--    uvs_t = torch.tensor(uvs, dtype=torch.float32, device=device)-->
 
-    rays_o = torch.empty((n_rays, 3), dtype=torch.float32, device=device)
-    rays_d = torch.empty((n_rays, 3), dtype=torch.float32, device=device)
+<!--    rays_o = torch.empty((n_rays, 3), dtype=torch.float32, device=device)-->
+<!--    rays_d = torch.empty((n_rays, 3), dtype=torch.float32, device=device)-->
 
-    # 按图像 id 分组，减少重复变换
-    unique_ids = np.unique(img_ids)
-    offset_mask = np.zeros(n_rays, dtype=bool)
-    for uid in unique_ids:
-        mask = (img_ids == uid)
-        idxs = np.where(mask)[0]
-        c2w_t = to_torch32(c2ws[uid], device)
-        # 选出该图像的像素
-        ray_o, ray_d = pixel_to_ray(K_t, c2w_t, uvs_t[idxs])
-        rays_o[idxs] = ray_o
-        rays_d[idxs] = ray_d
-        offset_mask[idxs] = True
+<!--    # 按图像 id 分组，减少重复变换-->
+<!--    unique_ids = np.unique(img_ids)-->
+<!--    offset_mask = np.zeros(n_rays, dtype=bool)-->
+<!--    for uid in unique_ids:-->
+<!--        mask = (img_ids == uid)-->
+<!--        idxs = np.where(mask)[0]-->
+<!--        c2w_t = to_torch32(c2ws[uid], device)-->
+<!--        # 选出该图像的像素-->
+<!--        ray_o, ray_d = pixel_to_ray(K_t, c2w_t, uvs_t[idxs])-->
+<!--        rays_o[idxs] = ray_o-->
+<!--        rays_d[idxs] = ray_d-->
+<!--        offset_mask[idxs] = True-->
 
-    assert offset_mask.all()
-    target_t = torch.tensor(target, dtype=torch.float32, device=device)
-    return rays_o, rays_d, target_t  </pre>
+<!--    assert offset_mask.all()-->
+<!--    target_t = torch.tensor(target, dtype=torch.float32, device=device)-->
+<!--    return rays_o, rays_d, target_t  </pre>-->
 
   <h3>2.5.4 — Training Loop</h3>
   <p>
@@ -1559,132 +1559,132 @@ def sample_random_rays_global(
     6 validation views.
   </p>
 
-  <h4>Training Loop Code (LEGO)</h4>
-  <pre>
-# Config
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    results_dir = "results"
-    ensure_dir(results_dir)
-    ensure_dir(os.path.join(results_dir, "train_snaps"))
-    ensure_dir(os.path.join(results_dir, "val_snaps"))
+<!--  <h4>Training Loop Code (LEGO)</h4>-->
+<!--  <pre>-->
+<!--# Config-->
+<!--    device = "cuda" if torch.cuda.is_available() else "cpu"-->
+<!--    results_dir = "results"-->
+<!--    ensure_dir(results_dir)-->
+<!--    ensure_dir(os.path.join(results_dir, "train_snaps"))-->
+<!--    ensure_dir(os.path.join(results_dir, "val_snaps"))-->
 
-    # Hyperparams
-    iters         = 1000            # 课程参考：1000 steps 可达 23+ PSNR
-    rays_per_iter = 10_000          # 每步采样光线数
-    n_samples     = 64              # 每条光线采样点数
-    near, far     = 2.0, 6.0
-    lr            = 5e-4            # 课程建议
-    log_interval  = 50
-    val_interval  = 100
+<!--    # Hyperparams-->
+<!--    iters         = 1000            # 课程参考：1000 steps 可达 23+ PSNR-->
+<!--    rays_per_iter = 10_000          # 每步采样光线数-->
+<!--    n_samples     = 64              # 每条光线采样点数-->
+<!--    near, far     = 2.0, 6.0-->
+<!--    lr            = 5e-4            # 课程建议-->
+<!--    log_interval  = 50-->
+<!--    val_interval  = 100-->
 
-    # Load lego data
-    data = np.load("lego_200x200.npz")
-    images_train = data["images_train"] / 255.0  # (100,200,200,3)
-    c2ws_train   = data["c2ws_train"]
-    images_val   = data["images_val"]   / 255.0  # (10,200,200,3)
-    c2ws_val     = data["c2ws_val"]
-    c2ws_test    = data["c2ws_test"]            # (60,4,4)
-    focal        = float(data["focal"])
-    H, W = images_train.shape[1:3]
-    K = np.array([[focal, 0, W/2],
-                  [0, focal, H/2],
-                  [0, 0, 1   ]], dtype=np.float32)
+<!--    # Load lego data-->
+<!--    data = np.load("lego_200x200.npz")-->
+<!--    images_train = data["images_train"] / 255.0  # (100,200,200,3)-->
+<!--    c2ws_train   = data["c2ws_train"]-->
+<!--    images_val   = data["images_val"]   / 255.0  # (10,200,200,3)-->
+<!--    c2ws_val     = data["c2ws_val"]-->
+<!--    c2ws_test    = data["c2ws_test"]            # (60,4,4)-->
+<!--    focal        = float(data["focal"])-->
+<!--    H, W = images_train.shape[1:3]-->
+<!--    K = np.array([[focal, 0, W/2],-->
+<!--                  [0, focal, H/2],-->
+<!--                  [0, 0, 1   ]], dtype=np.float32)-->
 
-    # Model
-    model = NeRF(W=256, D=8, Lx=10, Ld=4).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    criterion = nn.MSELoss()
+<!--    # Model-->
+<!--    model = NeRF(W=256, D=8, Lx=10, Ld=4).to(device)-->
+<!--    optimizer = torch.optim.Adam(model.parameters(), lr=lr)-->
+<!--    criterion = nn.MSELoss()-->
 
-    # Logs
-    train_losses = []
-    val_psnrs = []
+<!--    # Logs-->
+<!--    train_losses = []-->
+<!--    val_psnrs = []-->
 
-    print(f"[INFO] Start training on {device} | steps={iters} | rays/it={rays_per_iter}")
+<!--    print(f"[INFO] Start training on {device} | steps={iters} | rays/it={rays_per_iter}")-->
 
-    t0 = time.time()
-    for it in range(1, iters + 1):
-        model.train()
-        # 1) sample random rays globally
-        rays_o, rays_d, target_rgb = sample_random_rays_global(
-            images_train, K, c2ws_train, rays_per_iter, device
-        )
-        # 2) march along rays
-        pts, _ = sample_along_rays(rays_o, rays_d,
-                                   n_samples=n_samples, near=near, far=far, perturb=True)
-        # 3) network forward
-        sigma, rgb = model(pts, rays_d.unsqueeze(1).expand_as(pts))
-        # 4) volume render
-        step_size = (far - near) / n_samples
-        pred_rgb = volrend(sigma, rgb, step_size=step_size)  # (B,3)
-        # 5) loss
-        loss = criterion(pred_rgb, target_rgb)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+<!--    t0 = time.time()-->
+<!--    for it in range(1, iters + 1):-->
+<!--        model.train()-->
+<!--        # 1) sample random rays globally-->
+<!--        rays_o, rays_d, target_rgb = sample_random_rays_global(-->
+<!--            images_train, K, c2ws_train, rays_per_iter, device-->
+<!--        )-->
+<!--        # 2) march along rays-->
+<!--        pts, _ = sample_along_rays(rays_o, rays_d,-->
+<!--                                   n_samples=n_samples, near=near, far=far, perturb=True)-->
+<!--        # 3) network forward-->
+<!--        sigma, rgb = model(pts, rays_d.unsqueeze(1).expand_as(pts))-->
+<!--        # 4) volume render-->
+<!--        step_size = (far - near) / n_samples-->
+<!--        pred_rgb = volrend(sigma, rgb, step_size=step_size)  # (B,3)-->
+<!--        # 5) loss-->
+<!--        loss = criterion(pred_rgb, target_rgb)-->
+<!--        optimizer.zero_grad()-->
+<!--        loss.backward()-->
+<!--        optimizer.step()-->
 
-        train_losses.append(loss.item())
+<!--        train_losses.append(loss.item())-->
 
-        if it % log_interval == 0 or it == 1:
-            psnr = psnr_from_mse_t(loss.detach())
-            elapsed = time.time() - t0
-            print(f"[{it:04d}/{iters}] loss={loss.item():.6f} | psnr={psnr:.2f} dB | {elapsed:.1f}s")
+<!--        if it % log_interval == 0 or it == 1:-->
+<!--            psnr = psnr_from_mse_t(loss.detach())-->
+<!--            elapsed = time.time() - t0-->
+<!--            print(f"[{it:04d}/{iters}] loss={loss.item():.6f} | psnr={psnr:.2f} dB | {elapsed:.1f}s")-->
 
-        # 验证 & 可视化
-        if it % val_interval == 0 or it == iters:
-            model.eval()
-            # 渲染 1 张训练图作为进度快照
-            snap_pred = render_one_view(
-                model, K, c2ws_train[0], H, W,
-                near=near, far=far, n_samples=n_samples, chunk=8192, device=device
-            )
-            snap_canvas = np.concatenate([images_train[0], snap_pred], axis=1)
-            Image.fromarray((snap_canvas * 255).astype(np.uint8)).save(
-                os.path.join(results_dir, "train_snaps", f"iter_{it:04d}.png")
-            )
-            # 评估验证 PSNR（6张）
-            mean_psnr, saved_paths = validate_psnr(
-                model, images_val, K, c2ws_val, n_imgs=6,
-                out_dir=os.path.join(results_dir, "val_snaps"), device=device
-            )
-            val_psnrs.append((it, mean_psnr))
-            print(f"  [val] PSNR(mean over 6) = {mean_psnr:.2f} dB")
+<!--        # 验证 & 可视化-->
+<!--        if it % val_interval == 0 or it == iters:-->
+<!--            model.eval()-->
+<!--            # 渲染 1 张训练图作为进度快照-->
+<!--            snap_pred = render_one_view(-->
+<!--                model, K, c2ws_train[0], H, W,-->
+<!--                near=near, far=far, n_samples=n_samples, chunk=8192, device=device-->
+<!--            )-->
+<!--            snap_canvas = np.concatenate([images_train[0], snap_pred], axis=1)-->
+<!--            Image.fromarray((snap_canvas * 255).astype(np.uint8)).save(-->
+<!--                os.path.join(results_dir, "train_snaps", f"iter_{it:04d}.png")-->
+<!--            )-->
+<!--            # 评估验证 PSNR（6张）-->
+<!--            mean_psnr, saved_paths = validate_psnr(-->
+<!--                model, images_val, K, c2ws_val, n_imgs=6,-->
+<!--                out_dir=os.path.join(results_dir, "val_snaps"), device=device-->
+<!--            )-->
+<!--            val_psnrs.append((it, mean_psnr))-->
+<!--            print(f"  [val] PSNR(mean over 6) = {mean_psnr:.2f} dB")-->
 
-    # 保存曲线
-    import matplotlib.pyplot as plt
-    plt.figure()
-    plt.plot(train_losses)
-    plt.xlabel("Iteration")
-    plt.ylabel("Train MSE")
-    plt.title("Training Loss")
-    plt.tight_layout()
-    plt.savefig(os.path.join(results_dir, "train_loss_curve.png"))
-    plt.close()
+<!--    # 保存曲线-->
+<!--    import matplotlib.pyplot as plt-->
+<!--    plt.figure()-->
+<!--    plt.plot(train_losses)-->
+<!--    plt.xlabel("Iteration")-->
+<!--    plt.ylabel("Train MSE")-->
+<!--    plt.title("Training Loss")-->
+<!--    plt.tight_layout()-->
+<!--    plt.savefig(os.path.join(results_dir, "train_loss_curve.png"))-->
+<!--    plt.close()-->
 
-    if len(val_psnrs) > 0:
-        its, ps = zip(*val_psnrs)
-        plt.figure()
-        plt.plot(list(its), list(ps))
-        plt.xlabel("Iteration")
-        plt.ylabel("PSNR (dB)")
-        plt.title("Validation PSNR (6 images)")
-        plt.tight_layout()
-        plt.savefig(os.path.join(results_dir, "val_psnr_curve.png"))
-        plt.close()
+<!--    if len(val_psnrs) > 0:-->
+<!--        its, ps = zip(*val_psnrs)-->
+<!--        plt.figure()-->
+<!--        plt.plot(list(its), list(ps))-->
+<!--        plt.xlabel("Iteration")-->
+<!--        plt.ylabel("PSNR (dB)")-->
+<!--        plt.title("Validation PSNR (6 images)")-->
+<!--        plt.tight_layout()-->
+<!--        plt.savefig(os.path.join(results_dir, "val_psnr_curve.png"))-->
+<!--        plt.close()-->
 
-    # 渲染测试相机轨迹视频 (spherical)
-    print("[INFO] Rendering c2ws_test video ...")
-    frames = []
-    for i, c2w in enumerate(c2ws_test):
-        img = render_one_view(
-            model, K, c2w, H, W,
-            near=near, far=far, n_samples=n_samples, chunk=8192, device=device
-        )
-        frames.append((img * 255).astype(np.uint8))
-    gif_path = os.path.join(results_dir, "lego_spin.gif")
-    imageio.mimsave(gif_path, frames, fps=15)
-    print(f"[DONE] Saved video: {gif_path}")
+<!--    # 渲染测试相机轨迹视频 (spherical)-->
+<!--    print("[INFO] Rendering c2ws_test video ...")-->
+<!--    frames = []-->
+<!--    for i, c2w in enumerate(c2ws_test):-->
+<!--        img = render_one_view(-->
+<!--            model, K, c2w, H, W,-->
+<!--            near=near, far=far, n_samples=n_samples, chunk=8192, device=device-->
+<!--        )-->
+<!--        frames.append((img * 255).astype(np.uint8))-->
+<!--    gif_path = os.path.join(results_dir, "lego_spin.gif")-->
+<!--    imageio.mimsave(gif_path, frames, fps=15)-->
+<!--    print(f"[DONE] Saved video: {gif_path}")-->
 
-</pre>
+<!--</pre>-->
 
 
 <h3>2.5.5 — Training Loss & Validation PSNR</h3>
@@ -1838,325 +1838,325 @@ def sample_random_rays_global(
     <code>n_samples</code>, and larger MLP. I log loss/PSNR and save weights periodically.
   </p>
 
-  <h4>Training Loop Code (Mouse)</h4>
-  <pre>
-import os, time, math
-import numpy as np
-import torch
-import torch.nn as nn
-from typing import Tuple, List
-from PIL import Image
-import imageio.v2 as imageio
+<!--  <h4>Training Loop Code (Mouse)</h4>-->
+<!--  <pre>-->
+<!--import os, time, math-->
+<!--import numpy as np-->
+<!--import torch-->
+<!--import torch.nn as nn-->
+<!--from typing import Tuple, List-->
+<!--from PIL import Image-->
+<!--import imageio.v2 as imageio-->
 
-from rays_geometry import pixel_to_ray
-from sample_along_rays import sample_along_rays
-from volume_render import volrend
-from render_utils import render_one_view
-from nerf_network import NeRF
+<!--from rays_geometry import pixel_to_ray-->
+<!--from sample_along_rays import sample_along_rays-->
+<!--from volume_render import volrend-->
+<!--from render_utils import render_one_view-->
+<!--from nerf_network import NeRF-->
 
-print("PYTORCH_CUDA_ALLOC_CONF =", os.getenv("PYTORCH_CUDA_ALLOC_CONF"))
+<!--print("PYTORCH_CUDA_ALLOC_CONF =", os.getenv("PYTORCH_CUDA_ALLOC_CONF"))-->
 
-torch.cuda.empty_cache()
+<!--torch.cuda.empty_cache()-->
 
-# =========================
-# Helper / Utils
-# =========================
-def ensure_dir(p): os.makedirs(p, exist_ok=True)
-def to_torch32(x, device): return torch.tensor(x, dtype=torch.float32, device=device)
-def psnr_from_mse_t(mse_t: torch.Tensor) -> float: return (-10.0 * torch.log10(mse_t + 1e-12)).item()
+<!--# =========================-->
+<!--# Helper / Utils-->
+<!--# =========================-->
+<!--def ensure_dir(p): os.makedirs(p, exist_ok=True)-->
+<!--def to_torch32(x, device): return torch.tensor(x, dtype=torch.float32, device=device)-->
+<!--def psnr_from_mse_t(mse_t: torch.Tensor) -> float: return (-10.0 * torch.log10(mse_t + 1e-12)).item()-->
 
-def to_uint8_rgb(img01: np.ndarray, assume_bgr: bool = True) -> np.ndarray:
-    """
-    img01: [H,W,3] 浮点 0..1
-    assume_bgr=True 表示 img01 的通道顺序是 BGR，需要转为 RGB 才能给 PIL/imageio 看
-    """
-    img = np.clip(img01, 0.0, 1.0)
-    if assume_bgr:
-        img = img[..., ::-1]  # BGR -> RGB
-    return (img * 255.0 + 0.5).astype(np.uint8)
+<!--def to_uint8_rgb(img01: np.ndarray, assume_bgr: bool = True) -> np.ndarray:-->
+<!--    """-->
+<!--    img01: [H,W,3] 浮点 0..1-->
+<!--    assume_bgr=True 表示 img01 的通道顺序是 BGR，需要转为 RGB 才能给 PIL/imageio 看-->
+<!--    """-->
+<!--    img = np.clip(img01, 0.0, 1.0)-->
+<!--    if assume_bgr:-->
+<!--        img = img[..., ::-1]  # BGR -> RGB-->
+<!--    return (img * 255.0 + 0.5).astype(np.uint8)-->
 
-def save_png(path: str, img01: np.ndarray, assume_bgr: bool = True):
-    Image.fromarray(to_uint8_rgb(img01, assume_bgr=assume_bgr)).save(path)
+<!--def save_png(path: str, img01: np.ndarray, assume_bgr: bool = True):-->
+<!--    Image.fromarray(to_uint8_rgb(img01, assume_bgr=assume_bgr)).save(path)-->
 
-def look_at_origin(pos):
-    pos = np.asarray(pos, dtype=np.float32)
-    forward = -pos / (np.linalg.norm(pos) + 1e-9)
-    up = np.array([0, 1, 0], dtype=np.float32)
-    right = np.cross(up, forward); right /= (np.linalg.norm(right) + 1e-9)
-    up = np.cross(forward, right)
-    c2w = np.eye(4, dtype=np.float32)
-    c2w[:3, 0] = right; c2w[:3, 1] = up; c2w[:3, 2] = forward; c2w[:3, 3] = pos
-    return c2w
+<!--def look_at_origin(pos):-->
+<!--    pos = np.asarray(pos, dtype=np.float32)-->
+<!--    forward = -pos / (np.linalg.norm(pos) + 1e-9)-->
+<!--    up = np.array([0, 1, 0], dtype=np.float32)-->
+<!--    right = np.cross(up, forward); right /= (np.linalg.norm(right) + 1e-9)-->
+<!--    up = np.cross(forward, right)-->
+<!--    c2w = np.eye(4, dtype=np.float32)-->
+<!--    c2w[:3, 0] = right; c2w[:3, 1] = up; c2w[:3, 2] = forward; c2w[:3, 3] = pos-->
+<!--    return c2w-->
 
-def rot_x(phi):
-    return np.array([
-        [math.cos(phi), -math.sin(phi), 0, 0],
-        [math.sin(phi),  math.cos(phi), 0, 0],
-        [0,              0,             1, 0],
-        [0,              0,             0, 1],
-    ], dtype=np.float32)
+<!--def rot_x(phi):-->
+<!--    return np.array([-->
+<!--        [math.cos(phi), -math.sin(phi), 0, 0],-->
+<!--        [math.sin(phi),  math.cos(phi), 0, 0],-->
+<!--        [0,              0,             1, 0],-->
+<!--        [0,              0,             0, 1],-->
+<!--    ], dtype=np.float32)-->
 
-@torch.no_grad()
-def sample_random_rays_global(images, K, c2ws, n_rays, device):
-    """
-    从所有训练图像里全局随机采样 n_rays 条光线
-    返回: rays_o, rays_d, target_rgb (n_rays,3)
-    """
-    N, H, W, _ = images.shape
-    img_ids = np.random.randint(0, N, size=(n_rays,))
-    us = np.random.randint(0, W, size=(n_rays,))
-    vs = np.random.randint(0, H, size=(n_rays,))
-    target = images[img_ids, vs, us]   # (n_rays,3)
+<!--@torch.no_grad()-->
+<!--def sample_random_rays_global(images, K, c2ws, n_rays, device):-->
+<!--    """-->
+<!--    从所有训练图像里全局随机采样 n_rays 条光线-->
+<!--    返回: rays_o, rays_d, target_rgb (n_rays,3)-->
+<!--    """-->
+<!--    N, H, W, _ = images.shape-->
+<!--    img_ids = np.random.randint(0, N, size=(n_rays,))-->
+<!--    us = np.random.randint(0, W, size=(n_rays,))-->
+<!--    vs = np.random.randint(0, H, size=(n_rays,))-->
+<!--    target = images[img_ids, vs, us]   # (n_rays,3)-->
 
-    K_t = to_torch32(K, device)
-    uvs = np.stack([us + 0.5, vs + 0.5], axis=1)
-    uvs_t = torch.tensor(uvs, dtype=torch.float32, device=device)
+<!--    K_t = to_torch32(K, device)-->
+<!--    uvs = np.stack([us + 0.5, vs + 0.5], axis=1)-->
+<!--    uvs_t = torch.tensor(uvs, dtype=torch.float32, device=device)-->
 
-    rays_o = torch.empty((n_rays, 3), dtype=torch.float32, device=device)
-    rays_d = torch.empty((n_rays, 3), dtype=torch.float32, device=device)
+<!--    rays_o = torch.empty((n_rays, 3), dtype=torch.float32, device=device)-->
+<!--    rays_d = torch.empty((n_rays, 3), dtype=torch.float32, device=device)-->
 
-    unique_ids = np.unique(img_ids)
-    for uid in unique_ids:
-        mask = (img_ids == uid)
-        idxs = np.where(mask)[0]
-        c2w_t = to_torch32(c2ws[uid], device)
-        ro, rd = pixel_to_ray(K_t, c2w_t, uvs_t[idxs])
-        rays_o[idxs] = ro; rays_d[idxs] = rd
+<!--    unique_ids = np.unique(img_ids)-->
+<!--    for uid in unique_ids:-->
+<!--        mask = (img_ids == uid)-->
+<!--        idxs = np.where(mask)[0]-->
+<!--        c2w_t = to_torch32(c2ws[uid], device)-->
+<!--        ro, rd = pixel_to_ray(K_t, c2w_t, uvs_t[idxs])-->
+<!--        rays_o[idxs] = ro; rays_d[idxs] = rd-->
 
-    target_t = torch.tensor(target, dtype=torch.float32, device=device)
-    return rays_o, rays_d, target_t
+<!--    target_t = torch.tensor(target, dtype=torch.float32, device=device)-->
+<!--    return rays_o, rays_d, target_t-->
 
-@torch.no_grad()
-def validate_psnr(model, images_val, K, c2ws_val, near, far, n_samples, out_dir, device, max_imgs=6):
-    ensure_dir(out_dir)
-    H, W = images_val.shape[1:3]
-    picks = list(range(min(max_imgs, images_val.shape[0])))
+<!--@torch.no_grad()-->
+<!--def validate_psnr(model, images_val, K, c2ws_val, near, far, n_samples, out_dir, device, max_imgs=6):-->
+<!--    ensure_dir(out_dir)-->
+<!--    H, W = images_val.shape[1:3]-->
+<!--    picks = list(range(min(max_imgs, images_val.shape[0])))-->
 
-    psnrs = []
-    for i in picks:
-        gt = images_val[i]
-        pred = render_one_view(
-            model, K, c2ws_val[i], H, W,
-            near=near, far=far, n_samples=n_samples,
-            chunk=8192, device=device
-        )
+<!--    psnrs = []-->
+<!--    for i in picks:-->
+<!--        gt = images_val[i]-->
+<!--        pred = render_one_view(-->
+<!--            model, K, c2ws_val[i], H, W,-->
+<!--            near=near, far=far, n_samples=n_samples,-->
+<!--            chunk=8192, device=device-->
+<!--        )-->
 
-        # ---- 数值保护：防止 NaN / Inf / 越界 ----
-        pred = np.nan_to_num(pred, nan=0.0, posinf=1.0, neginf=0.0)
-        pred = np.clip(pred, 0.0, 1.0)
-        gt = np.clip(gt, 0.0, 1.0)
+<!--        # &#45;&#45;&#45;&#45; 数值保护：防止 NaN / Inf / 越界 &#45;&#45;&#45;&#45;-->
+<!--        pred = np.nan_to_num(pred, nan=0.0, posinf=1.0, neginf=0.0)-->
+<!--        pred = np.clip(pred, 0.0, 1.0)-->
+<!--        gt = np.clip(gt, 0.0, 1.0)-->
 
-        mse = np.mean((pred - gt) ** 2) + 1e-12
-        psnr = -10.0 * math.log10(mse)
-        psnrs.append(psnr)
+<!--        mse = np.mean((pred - gt) ** 2) + 1e-12-->
+<!--        psnr = -10.0 * math.log10(mse)-->
+<!--        psnrs.append(psnr)-->
 
-        # 拼接 GT 与预测结果 (横向对比)
-        canvas = np.concatenate([gt, pred], axis=1)
-        canvas = np.clip(canvas, 0.0, 1.0)  # 再保险
-        save_png(os.path.join(out_dir, f"val_{i:02d}.png"), canvas, assume_bgr=True)
+<!--        # 拼接 GT 与预测结果 (横向对比)-->
+<!--        canvas = np.concatenate([gt, pred], axis=1)-->
+<!--        canvas = np.clip(canvas, 0.0, 1.0)  # 再保险-->
+<!--        save_png(os.path.join(out_dir, f"val_{i:02d}.png"), canvas, assume_bgr=True)-->
 
-    return float(np.mean(psnrs)) if psnrs else 0.0
+<!--    return float(np.mean(psnrs)) if psnrs else 0.0-->
 
-@torch.no_grad()
-def offline_render_all(checkpoints_dir, images_train, c2ws_train, K, H, W, near, far, n_samples, c2ws_test, device):
-    # load all checkpoints
-    ckpts = sorted([f for f in os.listdir(checkpoints_dir) if f.endswith(".pth")])
-    out_snap = os.path.join("results_custom", "train_snaps")
-    ensure_dir(out_snap)
+<!--@torch.no_grad()-->
+<!--def offline_render_all(checkpoints_dir, images_train, c2ws_train, K, H, W, near, far, n_samples, c2ws_test, device):-->
+<!--    # load all checkpoints-->
+<!--    ckpts = sorted([f for f in os.listdir(checkpoints_dir) if f.endswith(".pth")])-->
+<!--    out_snap = os.path.join("results_custom", "train_snaps")-->
+<!--    ensure_dir(out_snap)-->
 
-    print("[INFO] Start offline rendering...")
+<!--    print("[INFO] Start offline rendering...")-->
 
-    for ck in ckpts:
-        print("[INFO] Rendering snapshot for", ck)
-        data = torch.load(os.path.join(checkpoints_dir, ck), map_location=device)
+<!--    for ck in ckpts:-->
+<!--        print("[INFO] Rendering snapshot for", ck)-->
+<!--        data = torch.load(os.path.join(checkpoints_dir, ck), map_location=device)-->
 
-        model = NeRF(W=512, D=8, Lx=12, Ld=4).to(device)
-        model.load_state_dict(data["model"])
-        model.eval()
+<!--        model = NeRF(W=512, D=8, Lx=12, Ld=4).to(device)-->
+<!--        model.load_state_dict(data["model"])-->
+<!--        model.eval()-->
 
-        iter_id = data["iter"]
+<!--        iter_id = data["iter"]-->
 
-        # ---- render train[0] for snapshot ----
-        pred = render_one_view(
-            model, K, c2ws_train[0], H, W,
-            near=near, far=far, n_samples=n_samples, chunk=8192, device=device
-        )
-        gt = images_train[0]
-        canvas = np.concatenate([gt, pred], axis=1)
-        save_png(os.path.join(out_snap, f"iter_{iter_id:05d}.png"), canvas, assume_bgr=True)
+<!--        # &#45;&#45;&#45;&#45; render train[0] for snapshot &#45;&#45;&#45;&#45;-->
+<!--        pred = render_one_view(-->
+<!--            model, K, c2ws_train[0], H, W,-->
+<!--            near=near, far=far, n_samples=n_samples, chunk=8192, device=device-->
+<!--        )-->
+<!--        gt = images_train[0]-->
+<!--        canvas = np.concatenate([gt, pred], axis=1)-->
+<!--        save_png(os.path.join(out_snap, f"iter_{iter_id:05d}.png"), canvas, assume_bgr=True)-->
 
-    # ---- render GIF using final checkpoint ----
-    print("[INFO] Rendering GIF using last checkpoint:", ckpts[-1])
-    data = torch.load(os.path.join(checkpoints_dir, ckpts[-1]), map_location=device)
+<!--    # &#45;&#45;&#45;&#45; render GIF using final checkpoint &#45;&#45;&#45;&#45;-->
+<!--    print("[INFO] Rendering GIF using last checkpoint:", ckpts[-1])-->
+<!--    data = torch.load(os.path.join(checkpoints_dir, ckpts[-1]), map_location=device)-->
 
-    model = NeRF(W=512, D=8, Lx=12 , Ld=4).to(device)
-    model.load_state_dict(data["model"])
-    model.eval()
+<!--    model = NeRF(W=512, D=8, Lx=12 , Ld=4).to(device)-->
+<!--    model.load_state_dict(data["model"])-->
+<!--    model.eval()-->
 
-    frames = []
-    for c2w in c2ws_test:
-        img = render_one_view(model, K, c2w, H, W,
-                              near=near, far=far, n_samples=n_samples, chunk=8192, device=device)
-        frames.append(to_uint8_rgb(img, assume_bgr=True))
+<!--    frames = []-->
+<!--    for c2w in c2ws_test:-->
+<!--        img = render_one_view(model, K, c2w, H, W,-->
+<!--                              near=near, far=far, n_samples=n_samples, chunk=8192, device=device)-->
+<!--        frames.append(to_uint8_rgb(img, assume_bgr=True))-->
 
-    gif_path = os.path.join("results_custom", "final_orbit.gif")
-    imageio.mimsave(gif_path, frames, fps=15)
-    print("[DONE] Saved GIF →", gif_path)
+<!--    gif_path = os.path.join("results_custom", "final_orbit.gif")-->
+<!--    imageio.mimsave(gif_path, frames, fps=15)-->
+<!--    print("[DONE] Saved GIF →", gif_path)-->
 
-# =========================
-# Main (custom data)
-# =========================
-def main():
-    # -------------------------
-    # Config
-    # -------------------------
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
-    try: torch.set_float32_matmul_precision("high")
-    except: pass
+<!--# =========================-->
+<!--# Main (custom data)-->
+<!--# =========================-->
+<!--def main():-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    # Config-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    device = "cuda" if torch.cuda.is_available() else "cpu"-->
+<!--    torch.backends.cuda.matmul.allow_tf32 = True-->
+<!--    torch.backends.cudnn.allow_tf32 = True-->
+<!--    try: torch.set_float32_matmul_precision("high")-->
+<!--    except: pass-->
 
-    results_dir = "results_custom"
-    ensure_dir(results_dir)
-    ensure_dir(os.path.join(results_dir, "train_snaps"))
+<!--    results_dir = "results_custom"-->
+<!--    ensure_dir(results_dir)-->
+<!--    ensure_dir(os.path.join(results_dir, "train_snaps"))-->
 
-    # NeRF 训练参数
-    near, far = 0.001, 0.5
-    n_samples = 128
-    rays_per_iter = 5000
-    iters = 40000
-    lr = 5e-4
-    log_interval = 50
-    snapshot_interval = 8000   # ✅ 每 2000 轮输出一张训练渲染结果
+<!--    # NeRF 训练参数-->
+<!--    near, far = 0.001, 0.5-->
+<!--    n_samples = 128-->
+<!--    rays_per_iter = 5000-->
+<!--    iters = 40000-->
+<!--    lr = 5e-4-->
+<!--    log_interval = 50-->
+<!--    snapshot_interval = 8000   # ✅ 每 2000 轮输出一张训练渲染结果-->
 
-    # -------------------------
-    # Load dataset
-    # -------------------------
-    data = np.load("dataset/my_data.npz")
-    images_train = data["images_train"] / 255.0
-    c2ws_train   = data["c2ws_train"]
-    K            = data["K"]
-    H, W = images_train.shape[1:3]
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    # Load dataset-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    data = np.load("dataset/my_data.npz")-->
+<!--    images_train = data["images_train"] / 255.0-->
+<!--    c2ws_train   = data["c2ws_train"]-->
+<!--    K            = data["K"]-->
+<!--    H, W = images_train.shape[1:3]-->
 
-    # -------------------------
-    # Orbit trajectory
-    # -------------------------
-    c0 = c2ws_train[1].astype(np.float32)
-    x0, y0, z0 = c0[0,3], c0[1,3], c0[2,3]
-    R = float(np.sqrt(x0*x0 + y0*y0))
-    if R < 1e-6: R = 0.3
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    # Orbit trajectory-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    c0 = c2ws_train[1].astype(np.float32)-->
+<!--    x0, y0, z0 = c0[0,3], c0[1,3], c0[2,3]-->
+<!--    R = float(np.sqrt(x0*x0 + y0*y0))-->
+<!--    if R < 1e-6: R = 0.3-->
 
-    NUM_SAMPLES = 30
-    c2ws_test = []
-    for phi in np.linspace(0, 2*np.pi, NUM_SAMPLES, endpoint=False):
-        cam_pos = np.array([R*np.cos(phi), R*np.sin(phi), z0], dtype=np.float32)
-        target  = np.array([0,0,0], dtype=np.float32)
-        up = np.array([0,0,-1], dtype=np.float32)
+<!--    NUM_SAMPLES = 30-->
+<!--    c2ws_test = []-->
+<!--    for phi in np.linspace(0, 2*np.pi, NUM_SAMPLES, endpoint=False):-->
+<!--        cam_pos = np.array([R*np.cos(phi), R*np.sin(phi), z0], dtype=np.float32)-->
+<!--        target  = np.array([0,0,0], dtype=np.float32)-->
+<!--        up = np.array([0,0,-1], dtype=np.float32)-->
 
-        forward = target - cam_pos; forward /= np.linalg.norm(forward)+1e-9
-        right   = np.cross(up, forward); right /= np.linalg.norm(right)+1e-9
-        true_up = np.cross(forward, right)
+<!--        forward = target - cam_pos; forward /= np.linalg.norm(forward)+1e-9-->
+<!--        right   = np.cross(up, forward); right /= np.linalg.norm(right)+1e-9-->
+<!--        true_up = np.cross(forward, right)-->
 
-        c2w = np.eye(4, dtype=np.float32)
-        c2w[:3,0] = right
-        c2w[:3,1] = true_up
-        c2w[:3,2] = forward
-        c2w[:3,3] = cam_pos
-        c2ws_test.append(c2w)
-    c2ws_test = np.stack(c2ws_test, axis=0)
+<!--        c2w = np.eye(4, dtype=np.float32)-->
+<!--        c2w[:3,0] = right-->
+<!--        c2w[:3,1] = true_up-->
+<!--        c2w[:3,2] = forward-->
+<!--        c2w[:3,3] = cam_pos-->
+<!--        c2ws_test.append(c2w)-->
+<!--    c2ws_test = np.stack(c2ws_test, axis=0)-->
 
-    print(f"[INFO] Test trajectory: {len(c2ws_test)} poses")
+<!--    print(f"[INFO] Test trajectory: {len(c2ws_test)} poses")-->
 
-    # -------------------------
-    # Model
-    # -------------------------
-    model = NeRF(W=512, D=8, Lx=12, Ld=4).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    criterion = nn.MSELoss()
-    scaler = torch.cuda.amp.GradScaler(enabled=(device=="cuda"))
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    # Model-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    model = NeRF(W=512, D=8, Lx=12, Ld=4).to(device)-->
+<!--    optimizer = torch.optim.Adam(model.parameters(), lr=lr)-->
+<!--    criterion = nn.MSELoss()-->
+<!--    scaler = torch.cuda.amp.GradScaler(enabled=(device=="cuda"))-->
 
-    # -------------------------
-    # Train
-    # -------------------------
-    train_losses = []
-    train_psnrs = []
-    checkpoints_dir = os.path.join(results_dir, "ckpts")
-    ensure_dir(checkpoints_dir)
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    # Train-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    train_losses = []-->
+<!--    train_psnrs = []-->
+<!--    checkpoints_dir = os.path.join(results_dir, "ckpts")-->
+<!--    ensure_dir(checkpoints_dir)-->
 
-    for it in range(1, iters + 1):
-        model.train()
-        rays_o, rays_d, target_rgb = sample_random_rays_global(
-            images_train, K, c2ws_train, rays_per_iter, device
-        )
-        pts, _ = sample_along_rays(
-            rays_o, rays_d, n_samples=n_samples,
-            near=near, far=far, perturb=True
-        )
+<!--    for it in range(1, iters + 1):-->
+<!--        model.train()-->
+<!--        rays_o, rays_d, target_rgb = sample_random_rays_global(-->
+<!--            images_train, K, c2ws_train, rays_per_iter, device-->
+<!--        )-->
+<!--        pts, _ = sample_along_rays(-->
+<!--            rays_o, rays_d, n_samples=n_samples,-->
+<!--            near=near, far=far, perturb=True-->
+<!--        )-->
 
-        with torch.cuda.amp.autocast(enabled=(device == "cuda"), dtype=torch.float16):
-            sigma, rgb = model(pts, rays_d.unsqueeze(1).expand_as(pts))
-            step = (far - near) / n_samples
-            pred_rgb = volrend(sigma, rgb, step_size=step)
-            loss = criterion(pred_rgb, target_rgb)
+<!--        with torch.cuda.amp.autocast(enabled=(device == "cuda"), dtype=torch.float16):-->
+<!--            sigma, rgb = model(pts, rays_d.unsqueeze(1).expand_as(pts))-->
+<!--            step = (far - near) / n_samples-->
+<!--            pred_rgb = volrend(sigma, rgb, step_size=step)-->
+<!--            loss = criterion(pred_rgb, target_rgb)-->
 
-        optimizer.zero_grad()
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
+<!--        optimizer.zero_grad()-->
+<!--        scaler.scale(loss).backward()-->
+<!--        scaler.step(optimizer)-->
+<!--        scaler.update()-->
 
-        train_losses.append(loss.item())
-        psnr = psnr_from_mse_t(loss.detach())
-        train_psnrs.append(psnr)
+<!--        train_losses.append(loss.item())-->
+<!--        psnr = psnr_from_mse_t(loss.detach())-->
+<!--        train_psnrs.append(psnr)-->
 
-        if it % log_interval == 0 or it == 1:
-            print(f"[{it}/{iters}] loss={loss.item():.6f} | psnr={psnr:.2f} dB")
+<!--        if it % log_interval == 0 or it == 1:-->
+<!--            print(f"[{it}/{iters}] loss={loss.item():.6f} | psnr={psnr:.2f} dB")-->
 
-        # ✅ 只保存模型，不渲染任何图
-        if it % snapshot_interval == 0 or it == iters:
-            ckpt_path = os.path.join(checkpoints_dir, f"iter_{it:05d}.pth")
-            torch.save({
-                "iter": it,
-                "model": model.state_dict(),
-                "optimizer": optimizer.state_dict(),
-            }, ckpt_path)
+<!--        # ✅ 只保存模型，不渲染任何图-->
+<!--        if it % snapshot_interval == 0 or it == iters:-->
+<!--            ckpt_path = os.path.join(checkpoints_dir, f"iter_{it:05d}.pth")-->
+<!--            torch.save({-->
+<!--                "iter": it,-->
+<!--                "model": model.state_dict(),-->
+<!--                "optimizer": optimizer.state_dict(),-->
+<!--            }, ckpt_path)-->
 
-    # -------------------------
-    # Curves
-    # -------------------------
-    import matplotlib.pyplot as plt
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    # Curves-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    import matplotlib.pyplot as plt-->
 
-    plt.figure()
-    plt.plot(train_losses)
-    plt.xlabel("Iteration")
-    plt.ylabel("Train Loss")
-    plt.title("Training Loss")
-    plt.tight_layout()
-    plt.savefig(os.path.join(results_dir, "train_loss_curve.png"))
-    plt.close()
+<!--    plt.figure()-->
+<!--    plt.plot(train_losses)-->
+<!--    plt.xlabel("Iteration")-->
+<!--    plt.ylabel("Train Loss")-->
+<!--    plt.title("Training Loss")-->
+<!--    plt.tight_layout()-->
+<!--    plt.savefig(os.path.join(results_dir, "train_loss_curve.png"))-->
+<!--    plt.close()-->
 
-    plt.figure()
-    plt.plot(train_psnrs)
-    plt.xlabel("Iteration")
-    plt.ylabel("Train PSNR (dB)")
-    plt.title("Training PSNR")
-    plt.tight_layout()
-    plt.savefig(os.path.join(results_dir, "train_psnr_curve.png"))
-    plt.close()
+<!--    plt.figure()-->
+<!--    plt.plot(train_psnrs)-->
+<!--    plt.xlabel("Iteration")-->
+<!--    plt.ylabel("Train PSNR (dB)")-->
+<!--    plt.title("Training PSNR")-->
+<!--    plt.tight_layout()-->
+<!--    plt.savefig(os.path.join(results_dir, "train_psnr_curve.png"))-->
+<!--    plt.close()-->
 
-    offline_render_all("results_custom/ckpts",
-                       images_train, c2ws_train,
-                       K, H, W, near, far, n_samples,
-                       c2ws_test, device)
-
-
+<!--    offline_render_all("results_custom/ckpts",-->
+<!--                       images_train, c2ws_train,-->
+<!--                       K, H, W, near, far, n_samples,-->
+<!--                       c2ws_test, device)-->
 
 
 
-if __name__ == "__main__":
-    main()
 
 
-  </pre>
+<!--if __name__ == "__main__":-->
+<!--    main()-->
+
+
+<!--  </pre>-->
 
 <h3>2.6.3 — Intermediate Renders (Custom Mouse NeRF)</h3>
 <p>
@@ -2248,54 +2248,54 @@ if __name__ == "__main__":
   <img src="results_custom\final_orbit_loop.gif" alt="Mouse orbit GIF" class="section-img">
   <div class="caption">Novel views of my mouse (GIF). Near/far and chunk tweaks remove foggy occlusion near the camera.</div>
 
-  <h4>Rendering Script (post-training)</h4>
-  <pre>
-@torch.no_grad()
-def offline_render_all(checkpoints_dir, images_train, c2ws_train, K, H, W, near, far, n_samples, c2ws_test, device):
-    # load all checkpoints
-    ckpts = sorted([f for f in os.listdir(checkpoints_dir) if f.endswith(".pth")])
-    out_snap = os.path.join("results_custom", "train_snaps")
-    ensure_dir(out_snap)
+<!--  <h4>Rendering Script (post-training)</h4>-->
+<!--  <pre>-->
+<!--@torch.no_grad()-->
+<!--def offline_render_all(checkpoints_dir, images_train, c2ws_train, K, H, W, near, far, n_samples, c2ws_test, device):-->
+<!--    # load all checkpoints-->
+<!--    ckpts = sorted([f for f in os.listdir(checkpoints_dir) if f.endswith(".pth")])-->
+<!--    out_snap = os.path.join("results_custom", "train_snaps")-->
+<!--    ensure_dir(out_snap)-->
 
-    print("[INFO] Start offline rendering...")
+<!--    print("[INFO] Start offline rendering...")-->
 
-    for ck in ckpts:
-        print("[INFO] Rendering snapshot for", ck)
-        data = torch.load(os.path.join(checkpoints_dir, ck), map_location=device)
+<!--    for ck in ckpts:-->
+<!--        print("[INFO] Rendering snapshot for", ck)-->
+<!--        data = torch.load(os.path.join(checkpoints_dir, ck), map_location=device)-->
 
-        model = NeRF(W=512, D=8, Lx=12, Ld=4).to(device)
-        model.load_state_dict(data["model"])
-        model.eval()
+<!--        model = NeRF(W=512, D=8, Lx=12, Ld=4).to(device)-->
+<!--        model.load_state_dict(data["model"])-->
+<!--        model.eval()-->
 
-        iter_id = data["iter"]
+<!--        iter_id = data["iter"]-->
 
-        # ---- render train[0] for snapshot ----
-        pred = render_one_view(
-            model, K, c2ws_train[0], H, W,
-            near=near, far=far, n_samples=n_samples, chunk=8192, device=device
-        )
-        gt = images_train[0]
-        canvas = np.concatenate([gt, pred], axis=1)
-        save_png(os.path.join(out_snap, f"iter_{iter_id:05d}.png"), canvas, assume_bgr=True)
+<!--        # &#45;&#45;&#45;&#45; render train[0] for snapshot &#45;&#45;&#45;&#45;-->
+<!--        pred = render_one_view(-->
+<!--            model, K, c2ws_train[0], H, W,-->
+<!--            near=near, far=far, n_samples=n_samples, chunk=8192, device=device-->
+<!--        )-->
+<!--        gt = images_train[0]-->
+<!--        canvas = np.concatenate([gt, pred], axis=1)-->
+<!--        save_png(os.path.join(out_snap, f"iter_{iter_id:05d}.png"), canvas, assume_bgr=True)-->
 
-    # ---- render GIF using final checkpoint ----
-    print("[INFO] Rendering GIF using last checkpoint:", ckpts[-1])
-    data = torch.load(os.path.join(checkpoints_dir, ckpts[-1]), map_location=device)
+<!--    # &#45;&#45;&#45;&#45; render GIF using final checkpoint &#45;&#45;&#45;&#45;-->
+<!--    print("[INFO] Rendering GIF using last checkpoint:", ckpts[-1])-->
+<!--    data = torch.load(os.path.join(checkpoints_dir, ckpts[-1]), map_location=device)-->
 
-    model = NeRF(W=512, D=8, Lx=12 , Ld=4).to(device)
-    model.load_state_dict(data["model"])
-    model.eval()
+<!--    model = NeRF(W=512, D=8, Lx=12 , Ld=4).to(device)-->
+<!--    model.load_state_dict(data["model"])-->
+<!--    model.eval()-->
 
-    frames = []
-    for c2w in c2ws_test:
-        img = render_one_view(model, K, c2w, H, W,
-                              near=near, far=far, n_samples=n_samples, chunk=8192, device=device)
-        frames.append(to_uint8_rgb(img, assume_bgr=True))
+<!--    frames = []-->
+<!--    for c2w in c2ws_test:-->
+<!--        img = render_one_view(model, K, c2w, H, W,-->
+<!--                              near=near, far=far, n_samples=n_samples, chunk=8192, device=device)-->
+<!--        frames.append(to_uint8_rgb(img, assume_bgr=True))-->
 
-    gif_path = os.path.join("results_custom", "final_orbit.gif")
-    imageio.mimsave(gif_path, frames, fps=15)
-    print("[DONE] Saved GIF →", gif_path)
-  </pre>
+<!--    gif_path = os.path.join("results_custom", "final_orbit.gif")-->
+<!--    imageio.mimsave(gif_path, frames, fps=15)-->
+<!--    print("[DONE] Saved GIF →", gif_path)-->
+<!--  </pre>-->
 
 
   <!-- ====================================================== -->
