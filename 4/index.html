@@ -1,0 +1,2354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CS180 Project 4 – Neural Radiance Fields (NeRF)</title>
+
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 1100px; margin: 30px auto; line-height: 1.6; color: #222; }
+    h1, h2, h3 { color: #0b3d91; margin-bottom: 6px; }
+    h1 { font-size: 30px; }
+    h2 { font-size: 22px; border-bottom: 1px solid #e6e6e6; padding-bottom: 6px; }
+    h3 { font-size: 18px; }
+    img { max-width: 100%; display: block; margin: 10px 0; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+    code, pre { background: #f7f7f7; padding: 6px 10px; border-radius: 4px; display:block; overflow-x:auto; }
+    .caption { color:#555; font-size:0.9em; margin-top:4px; }
+    .pair { display:flex; gap:16px; flex-wrap:wrap; margin:14px 0; }
+    .pair > div { flex:1; min-width:280px; }
+    .section-img { margin: 16px 0; }
+  </style>
+
+  <!-- MathJax -->
+  <script>
+    MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };
+  </script>
+  <script id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+  </script>
+</head>
+
+<body>
+
+  <h1>Programming Project #4 – Neural Radiance Field (NeRF)</h1>
+  <h2>CS180: Intro to Computer Vision and Computational Photography</h2>
+  <h3>Author: Zhang Zhendan</h3>
+
+  <h2>Overview</h2>
+  <p>
+    In this project, I implement a full Neural Radiance Field (NeRF) system from scratch.  
+    This includes camera calibration, pose estimation, multiview ray sampling, volume rendering,
+    and training neural networks for both 2D neural fields and 3D radiance fields.
+    The entire NeRF pipeline is built in PyTorch, following the project specification closely.
+  </p>
+  <p>
+    My implementation supports both the provided LEGO dataset and a custom dataset
+    (photos of my computer mouse), with improvements such as checkpoint-based training,
+    increased sampling resolution, and custom rendering hyperparameters for high-quality reconstruction.
+  </p>
+
+  <!-- PART 0 ------------------------------------------------------------ -->
+
+  <h2>Part 0 — Calibrating the Camera and Capturing a 3D Scan</h2>
+  <p>
+    For Part 0, I completed the full calibration pipeline:
+    <strong>Aruco detection → camera intrinsic calibration → pose estimation (PnP) → undistortion → dataset packaging</strong>.
+    These calibration results are required to produce accurate camera-to-world matrices for NeRF training.
+  </p>
+
+  <h3>0.1 — Camera Calibration</h3>
+  <p>
+    I captured 39 calibration images of 4×4 ArUco markers using a fixed zoom level.
+    In each image, I detected all visible tags and collected the corner correspondences.
+    I then used <code>cv2.calibrateCamera()</code> to compute the intrinsic matrix \(K\)
+    and distortion coefficients.
+  </p>
+
+<div class="section-img" style="display:flex; gap:12px; justify-content:space-between;">
+  <img src="figure/calib1.jpg" style="width:33%; object-fit:cover;">
+  <img src="figure/calib2.jpg" style="width:33%; object-fit:cover;">
+  <img src="figure/calib3.jpg" style="width:33%; object-fit:cover;">
+</div>
+<div class="caption">Sample calibration images captured from various angles.</div>
+
+
+<!--  <h4>Calibration Code</h4>-->
+<!--  <pre>-->
+<!--import cv2-->
+<!--import numpy as np-->
+<!--import glob-->
+<!--import os-->
+<!--import time-->
+
+<!--# ============================================================-->
+<!--# Configuration-->
+<!--# ============================================================-->
+<!--IMAGE_PATTERN = "calibration_images_ds/*.jpg"   # 标定图像路径，可改为你的路径-->
+<!--TAG_SIZE_M = 0.054                               # 单个 ArUco 边长（米）-->
+<!--SAVE_PATH = "camera_calibration.npz"            # 输出文件-->
+<!--VISUALIZE = False                               # 是否显示检测结果-->
+
+<!--# ============================================================-->
+<!--# 1. 创建 ArUco 检测器-->
+<!--# ============================================================-->
+<!--aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)-->
+<!--aruco_params = (cv2.aruco.DetectorParameters_create()-->
+<!--                if hasattr(cv2.aruco, "DetectorParameters_create")-->
+<!--                else cv2.aruco.DetectorParameters())-->
+
+<!--# ============================================================-->
+<!--# 2. 加载图片-->
+<!--# ============================================================-->
+<!--images = sorted(glob.glob(IMAGE_PATTERN))-->
+<!--if len(images) == 0:-->
+<!--    raise RuntimeError("No calibration images found!")-->
+
+<!--print(f"[INFO] Found {len(images)} images for calibration")-->
+
+<!--# ============================================================-->
+<!--# 3. 构建3D世界坐标（每个tag的4个角）-->
+<!--# ============================================================-->
+<!--objp = np.array([-->
+<!--    [0, 0, 0],-->
+<!--    [TAG_SIZE_M, 0, 0],-->
+<!--    [TAG_SIZE_M, TAG_SIZE_M, 0],-->
+<!--    [0, TAG_SIZE_M, 0]-->
+<!--], dtype=np.float32)-->
+
+<!--objpoints = []   # 存放3D点-->
+<!--imgpoints = []   # 存放2D点-->
+<!--valid_count = 0-->
+
+<!--# ============================================================-->
+<!--# 4. 遍历所有图片并检测角点（仅使用 ID==0 的 tag）-->
+<!--# ============================================================-->
+<!--for idx, fname in enumerate(images):-->
+<!--    img = cv2.imread(fname)-->
+<!--    if img is None:-->
+<!--        print(f"[WARN] Cannot read {fname}, skipping.")-->
+<!--        continue-->
+
+<!--    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)-->
+<!--    corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=aruco_params)-->
+
+<!--    if ids is not None:-->
+<!--        ids = ids.flatten()-->
+<!--        if 0 in ids:-->
+<!--            # 找到 id==0 的索引-->
+<!--            i0 = np.where(ids == 0)[0][0]-->
+<!--            objpoints.append(objp)-->
+<!--            imgpoints.append(corners[i0][0])-->
+<!--            valid_count += 1-->
+
+<!--            if VISUALIZE:-->
+<!--                cv2.aruco.drawDetectedMarkers(img, [corners[i0]], np.array([[0]]))-->
+<!--                cv2.imshow("Detected Tag 0", img)-->
+<!--                cv2.waitKey(100)-->
+<!--        else:-->
+<!--            print(f"[WARN] No tag ID=0 in image {idx+1}")-->
+<!--    else:-->
+<!--        print(f"[WARN] No tags detected in image {idx+1}")-->
+
+<!--cv2.destroyAllWindows()-->
+<!--print(f"[INFO] Using {valid_count} valid frames (tag ID=0 detected)")-->
+
+<!--# ============================================================-->
+<!--# 5. 相机标定计算-->
+<!--# ============================================================-->
+<!--if len(objpoints) < 3:-->
+<!--    raise RuntimeError("Not enough valid detections for calibration (need >=3 frames with tag ID=0).")-->
+
+<!--flags = (cv2.CALIB_FIX_K3 | cv2.CALIB_ZERO_TANGENT_DIST)-->
+<!--print(f"[INFO] Running calibration with {len(objpoints)} valid detections...")-->
+
+<!--start = time.time()-->
+<!--ret, K, dist, rvecs, tvecs = cv2.calibrateCamera(-->
+<!--    objpoints, imgpoints, gray.shape[::-1], None, None, flags=flags)-->
+<!--print(f"[INFO] Calibration finished in {time.time()-start:.2f}s")-->
+
+<!--# ============================================================-->
+<!--# 6. 保存与输出结果-->
+<!--# ============================================================-->
+<!--np.savez(SAVE_PATH, K=K, dist=dist, rvecs=rvecs, tvecs=tvecs, error=ret)-->
+<!--print(f"[SUCCESS] Calibration done! Saved to {SAVE_PATH}")-->
+<!--print("[RESULT] Reprojection error:", ret)-->
+<!--print("[INTRINSIC MATRIX K]:\n", K)-->
+<!--print("[DISTORTION COEFFS]:", dist.ravel())-->
+
+<!--  </pre>-->
+
+  <h3>0.2 — Capturing Object Scan</h3>
+  <p>
+    I chose a small mouse as the object for my custom NeRF in Part 2.6.
+    I printed a single ArUco tag with a white border and placed the mouse next to it.
+    I then captured 80 images around the object at varying angles and heights.
+  </p>
+
+<div class="section-img" style="display:flex; gap:12px; justify-content:space-between;">
+  <img src="figure/scan1.jpg" style="width:33%; object-fit:cover;">
+  <img src="figure/scan2.jpg" style="width:33%; object-fit:cover;">
+  <img src="figure/scan3.jpg" style="width:33%; object-fit:cover;">
+</div>
+<div class="caption">Example images from my mouse dataset captured for Part 2.6.</div>
+
+
+  <h3>0.3 — Camera Pose Estimation (PnP)</h3>
+  <p>
+    For each image, I detected the single printed ArUco tag and extracted its corner coordinates.
+    Using the known tag size, I constructed the 3D points and applied
+    <code>cv2.solvePnP</code> to estimate rotation and translation.
+    Because SolvePnP returns a world-to-camera transform, I inverted it to obtain
+    the camera-to-world (c2w) matrix required for NeRF.
+  </p>
+
+<div class="section-img" style="display:flex; gap:12px; justify-content:space-between;">
+  <img src="figure/pose1.png" style="width:33%; object-fit:cover;">
+  <img src="figure/pose2.png" style="width:33%; object-fit:cover;">
+  <img src="figure/pose3.png" style="width:33%; object-fit:cover;">
+</div>
+<div class="caption">Visualization of estimated camera frustums using Viser.</div>
+
+
+<!--  <h4>PnP Pose Estimation Code</h4>-->
+<!--  <pre>-->
+<!--# -*- coding: utf-8 -*- -->
+<!--import cv2-->
+<!--import numpy as np-->
+<!--import glob-->
+<!--import time-->
+<!--import viser-->
+<!--import os-->
+
+<!--# ============================================================-->
+<!--# 0. Load Intrinsics-->
+<!--# ============================================================-->
+<!--data = np.load("camera_calibration.npz")-->
+<!--K = data["K"]-->
+<!--dist = data["dist"]-->
+<!--print("[INFO] Loaded intrinsics:")-->
+<!--print("K =\n", K)-->
+<!--print("dist =", dist.ravel())-->
+
+<!--os.makedirs("poses", exist_ok=True)-->
+
+<!--# ============================================================-->
+<!--# 1. Define ArUco Tag 3D Corner Coordinates (world coordinates)-->
+<!--#    (tag is 2cm x 2cm in this example)-->
+<!--# ============================================================-->
+<!--tag_size = 0.04  # meters-->
+<!--s = tag_size / 2-->
+<!--objp = np.array([-->
+<!--    [-s,  s, 0],   # TL-->
+<!--    [ s,  s, 0],   # TR-->
+<!--    [ s, -s, 0],   # BR-->
+<!--    [-s, -s, 0],   # BL-->
+<!--], dtype=np.float32)-->
+
+<!--# ============================================================-->
+<!--# 2. Initialize ArUco Detector-->
+<!--# ============================================================-->
+<!--aruco_dict   = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)-->
+<!--aruco_params = cv2.aruco.DetectorParameters()-->
+
+<!--# ============================================================-->
+<!--# 3. Estimate Camera Pose for Each Image-->
+<!--# ============================================================-->
+<!--images = sorted(glob.glob("scan_downsampled/*.jpg"))-->
+<!--print(f"[INFO] Found {len(images)} images")-->
+
+<!--camera_poses = []   # list of (c2w, undistorted_image)-->
+
+<!--for i, path in enumerate(images):-->
+<!--    img = cv2.imread(path)-->
+<!--    if img is None:-->
+<!--        print(f"[WARN] Cannot load {path}")-->
+<!--        continue-->
+
+<!--    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)-->
+
+<!--    # -&#45;&#45; Detect ArUco -&#45;&#45;-->
+<!--    corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=aruco_params)-->
+<!--    if ids is None or len(ids) == 0:-->
+<!--        print(f"[WARN] No tag found in {path}, skipped.")-->
+<!--        continue-->
+
+<!--    target_id = 0  # 你打印的标签 ID-->
+<!--    flat_ids = ids.flatten()-->
+
+<!--    if target_id not in flat_ids:-->
+<!--        print(f"[WARN] Tag {target_id} not found in {path}, skipped.")-->
+<!--        continue-->
+
+<!--    idx = np.where(flat_ids == target_id)[0][0]-->
+<!--    imgp = corners[idx].reshape(-1, 2).astype(np.float32)-->
+
+<!--    # -&#45;&#45; Solve PnP (world→camera) -&#45;&#45;-->
+<!--    ret = cv2.solvePnPGeneric(-->
+<!--        objp, imgp, K, dist,-->
+<!--        flags=cv2.SOLVEPNP_IPPE_SQUARE-->
+<!--    )-->
+
+<!--    # ret 的长度可能是 3, 4, 或 6-->
+<!--    # 最前面永远是：-->
+<!--    #   ret[0] = success-->
+<!--    #   ret[1] = rvecs（list）-->
+<!--    #   ret[2] = tvecs（list）-->
+
+<!--    success = ret[0]-->
+<!--    rvecs = ret[1]-->
+<!--    tvecs = ret[2]-->
+
+<!--    if not success:-->
+<!--        print("IPPE solvePnPGeneric failed")-->
+<!--        continue-->
+
+<!--    # 拿两个解：-->
+<!--    # rvecs[0], tvecs[0] = 主解-->
+<!--    # rvecs[1], tvecs[1] = 镜像解（法向反向）-->
+
+<!--    R1, _ = cv2.Rodrigues(rvecs[0])-->
+<!--    t1 = tvecs[0].reshape(3)-->
+
+<!--    R2, _ = cv2.Rodrigues(rvecs[1])-->
+<!--    t2 = tvecs[1].reshape(3)-->
+
+<!--    # 计算两个解的相机位置（OpenCV w2c → c2w）-->
+<!--    cam1 = -R1.T @ t1-->
+<!--    cam2 = -R2.T @ t2-->
+
+<!--    # 选择 “相机在 tag 上方（z > 0）” 的解-->
+<!--    if cam1[2] > cam2[2]:-->
+<!--        R, t = R1, t1-->
+<!--    else:-->
+<!--        R, t = R2, t2-->
+
+<!--    # 构造 c2w-->
+<!--    c2w = np.eye(4, dtype=np.float32)-->
+<!--    c2w[:3, :3] = R.T-->
+<!--    c2w[:3, 3] = -R.T @ t-->
+
+<!--    camera_poses.append((c2w, img))-->
+<!--    np.savez(f"poses/pose_{i:03d}.npz", c2w=c2w, image_path=path)-->
+
+<!--    print(f"[INFO] Pose {i:03d} OK, t = {t.ravel()}")-->
+
+<!--print(f"[INFO] {len(camera_poses)} valid poses.")-->
+
+<!--# ============================================================-->
+<!--# 4. Visualize with Viser-->
+<!--# ============================================================-->
+<!--server = viser.ViserServer(share=False)-->
+<!--print("[INFO] Launching Viser...")-->
+
+<!--for i, (c2w, img) in enumerate(camera_poses):-->
+<!--    H, W = img.shape[:2]-->
+<!--    fov = 2 * np.arctan2(H / 2, K[1, 1])-->
+<!--    aspect = W / H-->
+
+<!--    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)-->
+
+<!--    server.scene.add_camera_frustum(-->
+<!--        f"/cameras/{i}",-->
+<!--        fov=float(fov),-->
+<!--        aspect=float(aspect),-->
+<!--        scale=0.02,-->
+<!--        wxyz=viser.transforms.SO3.from_matrix(c2w[:3, :3]).wxyz,-->
+<!--        position=c2w[:3, 3],-->
+<!--        image=img_rgb-->
+<!--    )-->
+
+<!--print("[INFO] All frustums added. Explore in browser.")-->
+<!--while True:-->
+<!--    time.sleep(0.1)-->
+
+<!--  </pre>-->
+
+  <h3>0.4 — Undistorting Images and Building the Dataset</h3>
+  <p>
+    Finally, I undistorted each captured image using the recovered intrinsic matrix
+    and distortion coefficients.  
+    I then split the dataset into training, validation, and test sets,
+    and saved everything in <code>.npz</code> format:
+  </p>
+
+  <ul>
+    <li><code>images_train</code>: Undistorted training images</li>
+    <li><code>c2ws_train</code>: Training camera-to-world matrices</li>
+    <li><code>images_val</code>: Validation images</li>
+    <li><code>c2ws_val</code>: Validation poses</li>
+    <li><code>c2ws_test</code>: Test poses for novel-view synthesis</li>
+    <li><code>focal</code>: The recovered focal length (fx=fy)</li>
+  </ul>
+
+<!--  <h4>Dataset Packaging Code</h4>-->
+<!--  <pre>-->
+<!--# -*- coding: utf-8 -*- -->
+<!--import cv2-->
+<!--import numpy as np-->
+<!--import glob-->
+<!--import os-->
+
+<!--# ============================================================-->
+<!--# 0. 加载相机内参（来自 Part 0.1）-->
+<!--# ============================================================-->
+<!--CALIB_PATH = "camera_calibrationa.npz"-->
+<!--POSE_DIR   = "poses"-->
+<!--OUT_DIR    = "dataset"-->
+<!--OUT_FILE   = os.path.join(OUT_DIR, "my_data.npz")-->
+
+<!--calib = np.load(CALIB_PATH)-->
+<!--K_orig = calib["K"].astype(np.float32)-->
+<!--dist   = calib["dist"].astype(np.float32)-->
+
+<!--print("[INFO] Loaded intrinsics K:")-->
+<!--print(K_orig)-->
+<!--print("dist =", dist.ravel())-->
+
+<!--# ============================================================-->
+<!--# 1. 加载姿态（poses/*.npz）-->
+<!--# ============================================================-->
+<!--pose_data = []-->
+<!--for npz_file in sorted(glob.glob(os.path.join(POSE_DIR, "*.npz"))):-->
+<!--    d = np.load(npz_file, allow_pickle=True)-->
+<!--    c2w = d["c2w"].astype(np.float32)-->
+
+<!--    if "image_path" not in d:-->
+<!--        print(f"[WARN] {npz_file} missing image_path")-->
+<!--        continue-->
+
+<!--    path = d["image_path"].item()-->
+<!--    if not os.path.exists(path):-->
+<!--        print(f"[WARN] Image {path} missing")-->
+<!--        continue-->
+
+<!--    pose_data.append((c2w, path))-->
+
+<!--if len(pose_data) == 0:-->
+<!--    raise RuntimeError("[ERROR] No pose files!")-->
+
+<!--print(f"[INFO] Found {len(pose_data)} pose files.")-->
+
+<!--# ============================================================-->
+<!--# 2. 去畸变 + 统一尺寸 + 同步更新 K-->
+<!--# ============================================================-->
+<!--images_out = []-->
+<!--c2ws_out   = []-->
+
+<!--target_size = None     # (W, H)-->
+<!--K_final     = None     # undistort + resize 后的内参-->
+
+<!--for i, (c2w, path) in enumerate(pose_data):-->
+<!--    img = cv2.imread(path)-->
+<!--    if img is None:-->
+<!--        print("[WARN] failed to read", path)-->
+<!--        continue-->
+
+<!--    H0, W0 = img.shape[:2]-->
+
+<!--    # (1) undistort 必须使用新 K-->
+<!--    K_new, _ = cv2.getOptimalNewCameraMatrix(-->
+<!--        K_orig, dist, (W0, H0), alpha=0-->
+<!--    )-->
+<!--    undist = cv2.undistort(img, K_orig, dist, None, K_new)-->
+
+<!--    # (2) 统一尺寸-->
+<!--    if target_size is None:-->
+<!--        target_size = (undist.shape[1], undist.shape[0])   # (W,H)-->
+<!--        K_final = K_new.copy()-->
+<!--        print(f"[INFO] Target size = {target_size}")-->
+<!--    else:-->
+<!--        if (undist.shape[1], undist.shape[0]) != target_size:-->
+<!--            # resize + scale K_new-->
+<!--            scale_w = target_size[0] / undist.shape[1]-->
+<!--            scale_h = target_size[1] / undist.shape[0]-->
+
+<!--            undist = cv2.resize(undist, target_size, interpolation=cv2.INTER_AREA)-->
+
+<!--            K_new[0,0] *= scale_w-->
+<!--            K_new[1,1] *= scale_h-->
+<!--            K_new[0,2] *= scale_w-->
+<!--            K_new[1,2] *= scale_h-->
+
+<!--        # 第一张的 K_new 是最终 K_final，其余保持一致即可-->
+<!--        K_final = K_final  # 不变-->
+
+<!--    # (3) BGR → RGB，[0,255]-->
+<!--    # rgb = cv2.cvtColor(undist, cv2.COLOR_BGR2RGB)-->
+<!--    rgb = undist-->
+<!--    rgb = rgb.astype(np.float32)-->
+
+<!--    images_out.append(rgb)-->
+<!--    c2ws_out.append(c2w)-->
+
+<!--images_out = np.array(images_out)       # (N,H,W,3)-->
+<!--c2ws_out   = np.array(c2ws_out)         # (N,4,4)-->
+<!--N, H, W, _ = images_out.shape-->
+
+<!--print(f"[INFO] Undistorted {N} images, final resolution = {H}×{W}")-->
+<!--print("[INFO] Final K:")-->
+<!--print(K_final)-->
+
+<!--# ============================================================-->
+<!--# 3. 划分 train / val / test（test = 所有图像）-->
+<!--# ============================================================-->
+<!--idxs = np.arange(N)-->
+<!--np.random.shuffle(idxs)-->
+
+<!--N_train = int(1.0 * N)-->
+<!--N_val   = int(0.0 * N)-->
+<!--N_test  = N      # ✅ test 全部图像-->
+
+<!--train_idx = idxs[:N_train]-->
+<!--val_idx   = idxs[N_train:N_train+N_val]-->
+<!--test_idx  = np.arange(N)  # 顺序不变（你原来要求的）-->
+
+<!--images_train = images_out[train_idx]-->
+<!--c2ws_train   = c2ws_out[train_idx]-->
+
+<!--images_val   = images_out[val_idx]-->
+<!--c2ws_val     = c2ws_out[val_idx]-->
+
+<!--images_test  = images_out[test_idx]-->
+<!--c2ws_test    = c2ws_out[test_idx]-->
+
+<!--print(f"[INFO] Split: train={len(train_idx)}, val={len(val_idx)}, test(all)={N_test}")-->
+
+<!--# ============================================================-->
+<!--# 4. 计算 focal（与你原来一致）-->
+<!--# ============================================================-->
+<!--focal = float((K_final[0,0] + K_final[1,1]) / 2.0)-->
+<!--print(f"[INFO] focal = {focal:.3f}")-->
+
+<!--# ============================================================-->
+<!--# 5. 保存 npz（字段完全兼容你旧代码）-->
+<!--# ============================================================-->
+<!--os.makedirs(OUT_DIR, exist_ok=True)-->
+
+<!--np.savez(-->
+<!--    OUT_FILE,-->
+
+<!--    images_train=images_train.astype(np.float32),-->
+<!--    c2ws_train=c2ws_train.astype(np.float32),-->
+
+<!--    images_val=images_val.astype(np.float32),-->
+<!--    c2ws_val=c2ws_val.astype(np.float32),-->
+
+<!--    images_test=images_test.astype(np.float32),-->
+<!--    c2ws_test=c2ws_test.astype(np.float32),-->
+
+<!--    focal=np.float32(focal),          # ✅ 保留你原来的字段-->
+<!--    K=K_final.astype(np.float32),     # ✅ undistort + resize 后的真实内参-->
+<!--    dist=np.zeros_like(dist),         # ✅ undistort 后畸变全为 0-->
+<!--    H=np.int32(H),-->
+<!--    W=np.int32(W),-->
+<!--)-->
+
+<!--print(f"[INFO] Saved dataset → {OUT_FILE}")-->
+<!--print("[DONE] Part 0.4 dataset creation complete!")-->
+
+
+<!--data = np.load("dataset/my_data.npz")-->
+<!--print("Loaded K =\n", data["K"])-->
+<!--  </pre>-->
+
+
+  <!-- ====================================================== -->
+  <!-- PART 1: 2D Neural Field                               -->
+  <!-- ====================================================== -->
+
+  <h2>Part 1 — Fitting a Neural Field to a 2D Image</h2>
+  <p>
+    Before implementing a full NeRF, I built a 2D neural field that maps 2D pixel coordinates
+    to RGB values. This part helps validate the positional encoding logic, MLP architecture,
+    and optimization loop, all of which extend directly to 3D NeRF.
+  </p>
+
+  <h3>1.1 — Network Architecture</h3>
+ <p>
+  My model is an MLP with Sinusoidal Positional Encoding (PE). For a normalized 2D coordinate
+  \((x,y)\in[0,1]^2\), the encoding is
+  \[
+    \phi(x,y) = [\,x,y,\ \{\sin(2^k \pi x),\ \cos(2^k \pi x),\ \sin(2^k \pi y),\ \cos(2^k \pi y)\}_{k=0}^{L-1}\,],
+  \]
+  which gives an input feature dimension of \(2 + 4L\) (e.g., \(L=10 \Rightarrow 42\) dims). The MLP uses
+  a hidden width of 256 and ends with a Sigmoid to output RGB in \([0,1]\). I train with Adam
+  (lr \(=1\text{e}{-2}\)), batch size \(=10{,}000\), and \(1\text{k}\sim10\text{k}\) iterations, reporting PSNR during training.
+</p>
+
+  <div class="section-img">
+    <img src="figure/mlp_img.jpg" alt="2D MLP architecture">
+    <div class="caption">MLP architecture used for the 2D neural field.</div>
+  </div>
+
+<!--  <h4>MLP Code</h4>-->
+<!--  <pre>-->
+<!--class MLP(nn.Module):-->
+<!--    def __init__(self, in_dim, hidden_dim=256, out_dim=3):-->
+<!--        super().__init__()-->
+<!--        self.layers = nn.Sequential(-->
+<!--            nn.Linear(in_dim, hidden_dim),-->
+<!--            nn.ReLU(),-->
+<!--            nn.Linear(hidden_dim, hidden_dim),-->
+<!--            nn.ReLU(),-->
+<!--            nn.Linear(hidden_dim, out_dim),-->
+<!--            nn.Sigmoid(),  # 输出 RGB ∈ [0, 1]-->
+<!--        )-->
+
+<!--    def forward(self, x):-->
+<!--        return self.layers(x)-->
+
+<!--  </pre>-->
+
+  <h3>1.2 — Dataloader for Pixel Sampling</h3>
+  <p>
+    For each training iteration, I randomly sample 10,000 pixels from the target image.
+    Each sample consists of:
+  </p>
+  <ul>
+    <li>Normalized coordinates: $(x/W, y/H)$</li>
+    <li>Normalized RGB colors: in range [0,1]</li>
+  </ul>
+
+<!--  <h4>Dataloader Code</h4>-->
+<!--  <pre>-->
+<!--def sample_pixels(img, num_samples):-->
+<!--    """img: numpy array [H, W, 3] (0-255)"""-->
+<!--    H, W, _ = img.shape-->
+<!--    xs = np.random.randint(0, W, num_samples)-->
+<!--    ys = np.random.randint(0, H, num_samples)-->
+<!--    coords = np.stack([xs / W, ys / H], axis=1)  # normalize-->
+<!--    colors = img[ys, xs] / 255.0                 # normalize-->
+<!--    return torch.tensor(coords, dtype=torch.float32), \-->
+<!--           torch.tensor(colors, dtype=torch.float32)-->
+<!--  </pre>-->
+
+  <h3>1.3 — Loss, Optimizer, and Training</h3>
+  <p>
+    I used:
+  </p>
+  <ul>
+    <li>Loss: Mean Squared Error (MSE)</li>
+    <li>Optimizer: Adam with learning rate 1e-2</li>
+    <li>Iterations: 1000–3000</li>
+    <li>Metric: Peak Signal-to-Noise Ratio (PSNR)</li>
+  </ul>
+
+<!--  <h4>Training Loop Code</h4>-->
+<!--  <pre>-->
+<!--in_dim = 2 * (2 * max_freq + 1)-->
+<!--    model = MLP(in_dim=in_dim, hidden_dim=hidden_dim, out_dim=3).to(device)-->
+<!--    optimizer = torch.optim.Adam(model.parameters(), lr=lr)-->
+<!--    criterion = nn.MSELoss()-->
+
+<!--    psnr_list = []-->
+<!--    save_dir = "training_vis"-->
+<!--    os.makedirs(save_dir, exist_ok=True)-->
+
+<!--    # 训练循环-->
+<!--    for it in range(1, num_iters + 1):-->
+<!--        coords, colors = sample_pixels(img, batch_size)-->
+<!--        coords, colors = coords.to(device), colors.to(device)-->
+
+<!--        pe = positional_encoding(coords, L=max_freq).to(device)-->
+<!--        pred = model(pe)-->
+<!--        loss = criterion(pred, colors)-->
+
+<!--        optimizer.zero_grad()-->
+<!--        loss.backward()-->
+<!--        optimizer.step()-->
+
+<!--        if it % 500 == 0 or it == 1:-->
+<!--            psnr = psnr_from_mse(loss)-->
+<!--            psnr_list.append(psnr.item())-->
+<!--            print(f"Iter {it:04d} | Loss={loss.item():.6f} | PSNR={psnr.item():.2f} dB")-->
+
+<!--            # 每100次保存重建图像-->
+<!--            with torch.no_grad():-->
+<!--                xs = torch.linspace(0, 1, W)-->
+<!--                ys = torch.linspace(0, 1, H)-->
+<!--                grid_x, grid_y = torch.meshgrid(xs, ys, indexing="xy")-->
+<!--                coords_full = torch.stack([grid_x, grid_y], dim=-1).reshape(-1, 2).to(device)-->
+<!--                preds = model(positional_encoding(coords_full, L=max_freq)).reshape(H, W, 3)-->
+<!--                img_pred = preds.cpu().numpy()-->
+
+<!--                plt.figure(figsize=(6, 3))-->
+<!--                plt.subplot(1, 2, 1)-->
+<!--                plt.title("GT")-->
+<!--                plt.imshow(img.astype(np.uint8))-->
+<!--                plt.axis("off")-->
+<!--                plt.subplot(1, 2, 2)-->
+<!--                plt.title(f"Iter {it}")-->
+<!--                plt.imshow(np.clip(img_pred, 0, 1))-->
+<!--                plt.axis("off")-->
+<!--                plt.tight_layout()-->
+<!--                plt.savefig(f"{save_dir}/iter_{it:04d}_freq{max_freq}_w{hidden_dim}.png")-->
+<!--                plt.close()-->
+<!--  </pre>-->
+
+<h3>Example — Training Progression on the Staff Image</h3>
+<p>The following three images show my neural field fitting results on the staff-provided image at different training iterations:</p>
+
+<div style="display:flex; gap:12px; justify-content:space-between;">
+  <img src="training_vis_example/iter_0100.png" style="width:32%;">
+  <img src="training_vis_example/iter_0500.png" style="width:32%;">
+  <img src="training_vis_example/iter_2000.png" style="width:32%;">
+</div>
+
+<div class="caption" style="text-align:center; margin-top:6px;">
+  My example reconstruction at 100, 500, and 2000 iterations.
+</div>
+
+<h3>Example — PSNR Curves (Trained on the Staff Image)</h3>
+
+<div style="display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between;">
+
+  <div style="width:48%; text-align:center;">
+    <img src="training_vis_example/psnr_curve_freq4_w64.png" style="width:100%;">
+    <div class="caption">Width = 64, L = 4</div>
+  </div>
+
+  <div style="width:48%; text-align:center;">
+    <img src="training_vis_example/psnr_curve_freq4_w256.png" style="width:100%;">
+    <div class="caption">Width = 256, L = 4</div>
+  </div>
+
+  <div style="width:48%; text-align:center;">
+    <img src="training_vis_example/psnr_curve_freq10_w64.png" style="width:100%;">
+    <div class="caption">Width = 64, L = 10</div>
+  </div>
+
+  <div style="width:48%; text-align:center;">
+    <img src="training_vis_example/psnr_curve_freq10_w256.png" style="width:100%;">
+    <div class="caption">Width = 256, L = 10</div>
+  </div>
+
+</div>
+
+
+<h3>1.4 — Training Progression</h3>
+
+<p>Below are several reconstructed images at different training iterations:</p>
+
+<div style="display:flex; gap:12px; justify-content:space-between;">
+  <img src="training_vis/iter_0500_freq10_w64.png" style="width:33%;">
+  <img src="training_vis/iter_2000_freq10_w64.png" style="width:33%;">
+  <img src="training_vis/iter_10000_freq10_w64.png" style="width:33%;">
+</div>
+
+
+<div class="caption">
+  Reconstruction improves significantly over training iterations as positional encoding helps capture higher-frequency details.
+</div>
+
+
+
+<h3>1.5 — Hyperparameter Study</h3>
+<p>I compare two MLP hidden dimensions (width) and two positional encoding frequency levels (L):</p>
+
+<table style="width:100%; table-layout:fixed; border-collapse:collapse; text-align:center;">
+  <tr>
+    <th style="padding:12px; text-align:center;">Hidden Dimension (Width)</th>
+    <th style="padding:12px; text-align:center;">PE Frequency Level (L)</th>
+    <th style="padding:12px; text-align:center;">Result</th>
+  </tr>
+
+  <tr>
+    <td style="text-align:center;">W = 64</td>
+    <td style="text-align:center;">L = 4</td>
+    <td style="text-align:center;">
+      <img src="training_vis/final_freq4_w64.png" style="width:250px;">
+    </td>
+  </tr>
+
+  <tr>
+    <td style="text-align:center;">W = 64</td>
+    <td style="text-align:center;">L = 10</td>
+    <td style="text-align:center;">
+      <img src="training_vis/final_freq10_w64.png" style="width:250px;">
+    </td>
+  </tr>
+
+  <tr>
+    <td style="text-align:center;">W = 256</td>
+    <td style="text-align:center;">L = 4</td>
+    <td style="text-align:center;">
+      <img src="training_vis/final_freq4_w256.png" style="width:250px;">
+    </td>
+  </tr>
+
+  <tr>
+    <td style="text-align:center;">W = 256</td>
+    <td style="text-align:center;">L = 10</td>
+    <td style="text-align:center;">
+      <img src="training_vis/final_freq10_w256.png" style="width:250px;">
+    </td>
+  </tr>
+</table>
+
+
+<h3>1.6 — PSNR Curves</h3>
+<p>Below are the PSNR curves for all four hyperparameter settings:</p>
+
+<div style="display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between;">
+
+  <div style="width:48%;">
+    <img src="training_vis/psnr_curve_freq4_w64.png" style="width:100%;">
+    <div class="caption">Width = 64, L = 4</div>
+  </div>
+
+  <div style="width:48%;">
+    <img src="training_vis/psnr_curve_freq4_w256.png" style="width:100%;">
+    <div class="caption">Width = 256, L = 4</div>
+  </div>
+
+  <div style="width:48%;">
+    <img src="training_vis/psnr_curve_freq10_w64.png" style="width:100%;">
+    <div class="caption">Width = 64, L = 10</div>
+  </div>
+
+  <div style="width:48%;">
+    <img src="training_vis/psnr_curve_freq10_w256.png" style="width:100%;">
+    <div class="caption">Width = 256, L = 10</div>
+  </div>
+
+</div>
+
+
+
+  <!-- ====================================================== -->
+  <!-- PART 2.1 – Rays: Coordinate Conversions                -->
+  <!-- ====================================================== -->
+
+  <h2>Part 2 — Neural Radiance Field from Multi-view Images</h2>
+  <p>
+    In Part 2, I extend the 2D neural field to a full 3D NeRF by predicting spatial density
+    and view-dependent color for each sample point along camera rays. This section describes
+    the geometric operations required before training.
+  </p>
+
+  <h3>2.1.1 — Camera-to-World Transform</h3>
+  <p>
+    A 3D point in camera coordinates is transformed to world coordinates by:
+  </p>
+  <p class="formula">
+    $$x_w = R x_c + t$$
+  </p>
+  <p>
+    I implemented a function supporting batch inputs and validated it using the identity:
+  </p>
+  <p class="formula">
+    $$x_c = c2w^{-1}(c2w(x_c))$$
+  </p>
+
+<!--  <h4>Camera Transform Code</h4>-->
+<!--  <pre>-->
+<!--import torch-->
+<!--from typing import Tuple-->
+
+<!--def _to_homo(x: torch.Tensor) -> torch.Tensor:-->
+<!--    """[... , 3] -> [..., 4]  末尾拼 1"""-->
+<!--    ones = torch.ones_like(x[..., :1])-->
+<!--    return torch.cat([x, ones], dim=-1)-->
+
+<!--def _from_homo(xh: torch.Tensor) -> torch.Tensor:-->
+<!--    """[... , 4] -> [..., 3]  除以最后一维"""-->
+<!--    w = xh[..., -1:]-->
+<!--    return xh[..., :3] / w-->
+
+<!--def _normalize(v: torch.Tensor, eps: float = 1e-9) -> torch.Tensor:-->
+<!--    return v / (torch.linalg.norm(v, dim=-1, keepdim=True) + eps)-->
+
+<!--# -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--# 1) Camera -> World transform-->
+<!--# -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--def transform_points(c2w: torch.Tensor, x_c: torch.Tensor) -> torch.Tensor:-->
+<!--    """-->
+<!--    将相机坐标系中的点变到世界坐标系。-->
+<!--    c2w: (..., 4, 4)  相机到世界的齐次矩阵-->
+<!--    x_c: (..., N, 3) 相机坐标的点-->
+<!--    return: (..., N, 3) 世界坐标的点-->
+<!--    """-->
+<!--    xh = _to_homo(x_c)                                  # (..., N, 4)-->
+<!--    # 右乘：[..., N, 4] @ [..., 4, 4]^T 以便 broadcast-->
+<!--    xw_h = torch.matmul(xh, c2w.transpose(-1, -2))      # (..., N, 4)-->
+<!--    return _from_homo(xw_h)                              # (..., N, 3)-->
+
+<!--def transform_points_inv(c2w: torch.Tensor, x_w: torch.Tensor) -> torch.Tensor:-->
+<!--    """-->
+<!--    世界 -> 相机（使用 c2w 的逆矩阵）-->
+<!--    """-->
+<!--    w2c = torch.linalg.inv(c2w)-->
+<!--    xh = _to_homo(x_w)-->
+<!--    xc_h = torch.matmul(xh, w2c.transpose(-1, -2))-->
+<!--    return _from_homo(xc_h)-->
+
+<!--  </pre>-->
+
+  <h3>2.1.2 — Pixel to Camera Coordinates</h3>
+  <p>
+    Using the intrinsic matrix
+  </p>
+  <p class="formula">
+    \( K = \begin{bmatrix} f & 0 & c_x \\ 0 & f & c_y \\ 0 & 0 & 1\end{bmatrix} \)
+  </p>
+  <p>
+    I invert the projection equation to compute camera-space coordinates of each pixel at depth 1.  
+    This enables construction of ray directions.
+  </p>
+
+<!--  <h4>pixel_to_camera Code</h4>-->
+<!--  <pre>-->
+<!--# &#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--# 2) Pixel -> Camera (pinhole backproject)-->
+<!--# &#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--def pixel_to_camera(-->
+<!--    K: torch.Tensor, uv: torch.Tensor, depth: torch.Tensor-->
+<!--) -> torch.Tensor:-->
+<!--    """-->
+<!--    将像素坐标反投影到相机坐标系下的 3D 点。-->
+<!--    K: (..., 3, 3) 内参；支持单个或批量-->
+<!--    uv: (..., N, 2) 像素坐标 (u, v) —— 记得外面构造时加 0.5 做像素中心偏移-->
+<!--    depth: (..., N) 或标量  深度 z (>0)-->
+<!--    return: (..., N, 3) 相机坐标系下 3D 点-->
+<!--    公式：x_c = z * K^{-1} [u, v, 1]^T-->
+<!--    """-->
+<!--    # 保证 batch 维度能 broadcast-->
+<!--    if depth.ndim == uv.ndim - 1:-->
+<!--        depth = depth.unsqueeze(-1)  # (..., N, 1)-->
+
+<!--    # 构造齐次像素-->
+<!--    ones = torch.ones_like(uv[..., :1])-->
+<!--    uv1 = torch.cat([uv, ones], dim=-1)                 # (..., N, 3)-->
+
+<!--    # K^{-1}-->
+<!--    Kinv = torch.linalg.inv(K)                          # (..., 3, 3)-->
+<!--    # 右乘：[..., N, 3] @ [..., 3, 3]^T-->
+<!--    dirs = torch.matmul(uv1, Kinv.transpose(-1, -2))    # (..., N, 3)-->
+<!--    x_c = dirs * depth                                  # 缩放到给定深度-->
+<!--    return x_c-->
+
+<!--  </pre>-->
+
+  <h3>2.1.3 — Pixel-to-Ray Conversion</h3>
+  <p>
+    A ray is defined by:
+  </p>
+  <ul>
+    <li><strong>Origin</strong>: camera position (c2w[:3,3])</li>
+    <li><strong>Direction</strong>: normalized vector from the camera through the pixel</li>
+  </ul>
+
+<div class="caption" style="text-align:center;">
+  Ray casting visualization: sampling rays and 3D points along each ray.
+</div>
+
+
+<!--  <h4>pixel_to_ray Code</h4>-->
+<!--  <pre>-->
+<!--# &#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--# 3) Pixel -> Ray (origin, normalized dir)-->
+<!--# &#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--def pixel_to_ray(-->
+<!--    K: torch.Tensor, c2w: torch.Tensor, uv: torch.Tensor-->
+<!--) -> Tuple[torch.Tensor, torch.Tensor]:-->
+<!--    """-->
+<!--    将像素坐标转换为世界坐标系下的光线 (ray_o, ray_d)。-->
+<!--    K:   (..., 3, 3)-->
+<!--    c2w: (..., 4, 4)-->
+<!--    uv:  (..., N, 2) 像素坐标 (u, v) —— 外面采样时请加 0.5 做像素中心-->
+<!--    return:-->
+<!--      ray_o: (..., N, 3) 光线原点（相机中心）-->
+<!--      ray_d: (..., N, 3) 归一化光线方向（世界坐标系）-->
+<!--    步骤：-->
+<!--      1) 在相机系选取 z=1 的点：x_c = K^{-1}[u, v, 1]^T-->
+<!--      2) 变换到世界系：x_w = c2w * x_c-->
+<!--      3) 相机中心 o = c2w[:3, 3]-->
+<!--      4) 方向 d = normalize(x_w - o)-->
+<!--    """-->
+<!--    # 相机中心（世界系）-->
+<!--    o_w = c2w[..., :3, 3]                               # (..., 3)-->
+<!--    # 先在相机系取 z=1 的点-->
+<!--    ones = torch.ones_like(uv[..., :1])-->
+<!--    uv1 = torch.cat([uv, ones], dim=-1)                 # (..., N, 3)-->
+<!--    Kinv = torch.linalg.inv(K)                          # (..., 3, 3)-->
+<!--    xc = torch.matmul(uv1, Kinv.transpose(-1, -2))      # (..., N, 3), depth=1-->
+
+<!--    # 相机 -> 世界-->
+<!--    xw = transform_points(c2w, xc)                      # (..., N, 3)-->
+
+<!--    # 原点 broadcast 到 N-->
+<!--    ray_o = o_w.unsqueeze(-2).expand_as(xw)             # (..., N, 3)-->
+<!--    ray_d = _normalize(xw - ray_o)                      # (..., N, 3)-->
+<!--    return ray_o, ray_d-->
+<!--  </pre>-->
+
+
+  <!-- ====================================================== -->
+  <!-- PART 2.2 – Sampling Points along Rays                  -->
+  <!-- ====================================================== -->
+
+  <h3>2.2 — Sampling Points along Rays</h3>
+  <p>
+    For each ray, I uniformly sample <code>n_samples = 64</code> points in the range
+    <code>[near, far]</code>.  
+    During training I enable stratified perturbation to improve coverage.
+  </p>
+
+<!--  <h4>sample_along_rays Code</h4>-->
+<!--  <pre>-->
+<!--# sample_along_rays.py-->
+<!--import torch-->
+
+<!--def sample_along_rays(-->
+<!--    rays_o: torch.Tensor,-->
+<!--    rays_d: torch.Tensor,-->
+<!--    n_samples: int = 64,-->
+<!--    near: float = 2.0,-->
+<!--    far: float = 6.0,-->
+<!--    perturb: bool = True,-->
+<!--    weights: torch.Tensor = None,-->
+<!--) -> torch.Tensor:-->
+<!--    """-->
+<!--    Uniform or importance sampling of 3D points along rays.-->
+<!--    Args:-->
+<!--        rays_o: (B, 3) 光线原点-->
+<!--        rays_d: (B, 3) 光线方向（单位向量）-->
+<!--        n_samples: 每条光线上的采样点数-->
+<!--        near, far: 采样深度范围-->
+<!--        perturb: 是否添加随机扰动（用于训练）-->
+<!--        weights: (B, M) 可选，若提供则基于 coarse 权重做重要性重采样-->
+
+<!--    Returns:-->
+<!--        points: (B, n_samples, 3) 采样的3D点-->
+<!--        t_vals: (B, n_samples) 深度参数-->
+<!--    """-->
+<!--    device = rays_o.device-->
+<!--    B = rays_o.shape[0]-->
+
+<!--    # ====== 若无权重，使用均匀采样 ======-->
+<!--    if weights is None:-->
+<!--        t_vals = torch.linspace(near, far, n_samples, device=device)-->
+<!--        t_vals = t_vals.expand(B, n_samples)-->
+
+<!--        if perturb:-->
+<!--            mids = 0.5 * (t_vals[:, 1:] + t_vals[:, :-1])-->
+<!--            upper = torch.cat([mids, t_vals[:, -1:]], dim=-1)-->
+<!--            lower = torch.cat([t_vals[:, :1], mids], dim=-1)-->
+<!--            t_rand = torch.rand(t_vals.shape, device=device)-->
+<!--            t_vals = lower + (upper - lower) * t_rand-->
+<!--    else:-->
+<!--        # ====== 若有权重，按 PDF / CDF 重采样 ======-->
+<!--        weights = weights + 1e-8  # 防止除0-->
+<!--        pdf = weights / torch.sum(weights, dim=1, keepdim=True)-->
+<!--        cdf = torch.cumsum(pdf, dim=1)-->
+<!--        cdf = torch.cat([torch.zeros_like(cdf[:, :1]), cdf], dim=-1)  # (B, M+1)-->
+
+<!--        # 在 [0,1] 均匀采样 n_samples 个随机数-->
+<!--        u = torch.rand(B, n_samples, device=device)-->
+<!--        inds = torch.searchsorted(cdf, u, right=True)-->
+<!--        inds = torch.clamp(inds, 1, cdf.shape[-1]-1)-->
+
+<!--        below = inds - 1-->
+<!--        above = inds-->
+<!--        cdf_g = torch.gather(cdf, 1, above) - torch.gather(cdf, 1, below)-->
+<!--        denom = torch.where(cdf_g < 1e-5, torch.ones_like(cdf_g), cdf_g)-->
+<!--        cdf_below = torch.gather(cdf, 1, below)-->
+<!--        cdf_above = torch.gather(cdf, 1, above)-->
+<!--        u_expand = u-->
+<!--        t = (u_expand - cdf_below) / denom-->
+<!--        # 将 [0,1] 映射回 [near, far]-->
+<!--        bins = torch.linspace(near, far, weights.shape[1], device=device)-->
+<!--        bins_below = torch.gather(bins.expand(B, -1), 1, below)-->
+<!--        bins_above = torch.gather(bins.expand(B, -1), 1, above)-->
+<!--        t_vals = bins_below + t * (bins_above - bins_below)-->
+
+<!--    # ===== 计算采样点 =====-->
+<!--    points = rays_o.unsqueeze(1) + rays_d.unsqueeze(1) * t_vals.unsqueeze(-1)-->
+<!--    return points, t_vals-->
+
+<!--  </pre>-->
+
+<h3>2.3 — Visualizing Rays and Sampled Points</h3>
+
+<p>
+  To better understand the ray sampling pipeline, I visualized the camera frustums,
+  randomly selected rays, and the 3D sample points along each ray. This was done using
+  <code>viser</code>, which provides an interactive 3D viewer in the browser.
+  The implementation is based on my dataset and the functions defined in
+  <code>RaysData</code> and <code>sample_along_rays.py</code>.
+</p>
+
+<p>
+  First, I load all training images, intrinsics, and camera poses from
+  <code>my_data.npz</code>, then construct the <code>RaysData</code> object.
+  I randomly sample 100 rays from random images and then sample 3D points along each ray
+  using uniform depth sampling.
+</p>
+
+<!--<pre><code class="language-python">-->
+<!--# Load data-->
+<!--data = np.load("dataset/my_data.npz")-->
+<!--images_train = data["images_train"] / 255.0-->
+<!--c2ws_train   = data["c2ws_train"]-->
+<!--K            = data["K"]-->
+<!--dist         = data["dist"]-->
+
+<!--dataset = RaysData(images_train, K, c2ws_train)-->
+
+<!--# Random rays-->
+<!--rays_o, rays_d, pixels = dataset.sample_rays(100)-->
+
+<!--# Sample 3D points along rays-->
+<!--points, _ = sample_along_rays(-->
+<!--    rays_o, rays_d,-->
+<!--    perturb=False,-->
+<!--    near=0.001, far=0.5-->
+<!--)-->
+<!--</code></pre>-->
+
+<h4>Adding Cameras and Rays to the Viewer</h4>
+<p>
+  I add each camera frustum to the 3D scene with its image attached for reference.  
+  Each sampled ray is drawn as a short colored line for easy inspection.
+</p>
+
+<!--<pre><code class="language-python">-->
+<!--server = viser.ViserServer(share=False)-->
+
+<!--# Camera frustums-->
+<!--for i, (img, c2w) in enumerate(zip(images_train, c2ws_train)):-->
+<!--    server.scene.add_camera_frustum(-->
+<!--        f"/cameras/{i}",-->
+<!--        fov=2 * np.arctan2(images_train.shape[1] / 2, K[0, 0]),-->
+<!--        aspect=images_train.shape[2] / images_train.shape[1],-->
+<!--        scale=0.02,-->
+<!--        wxyz=viser.transforms.SO3.from_matrix(c2w[:3, :3]).wxyz,-->
+<!--        position=c2w[:3, 3],-->
+<!--        image=img[..., ::-1],    # BGR → RGB-->
+<!--    )-->
+
+<!--# Rays-->
+<!--for i, (o, d) in enumerate(zip(rays_o, rays_d)):-->
+<!--    server.scene.add_spline_catmull_rom(-->
+<!--        f"/rays/{i}",-->
+<!--        positions=np.stack([o, o + d * 4.0])-->
+<!--    )-->
+<!--</code></pre>-->
+
+<h4>Visualizing Sampled 3D Points</h4>
+<p>
+  The sampled points along the rays form a 3D cloud inside the scene.
+  This helps verify that depth sampling behaves correctly and that the near/far range
+  is properly chosen for our dataset.
+</p>
+
+<!--<pre><code class="language-python">-->
+<!--points_np = points.cpu().numpy().reshape(-1, 3)-->
+<!--server.scene.add_point_cloud(-->
+<!--    "/samples",-->
+<!--    colors=np.zeros_like(points_np),-->
+<!--    points=points_np,-->
+<!--    point_size=0.005,-->
+<!--)-->
+<!--</code></pre>-->
+
+<p>
+  Opening the viewer reveals the camera positions, rays shooting into the scene,
+  and a cluster of sampled points along each ray.
+</p>
+
+<div class="caption" style="text-align:center; margin-top:6px;">
+  Visualization of camera frustums, sampled rays, and 3D sample points.
+</div>
+
+<div class="section-img" style="display:flex; gap:12px; justify-content:space-between;">
+  <img src="figure/2.2_100.png" style="width:49%;" alt="ray diagram example 1">
+  <img src="figure/2.2.png" style="width:49%;" alt="ray diagram example 2">
+</div>
+
+<h3>2.4 — NeRF Network</h3>
+
+<p>
+  I implemented a full NeRF-style MLP following the architecture described in the 
+  original NeRF paper. The network predicts both the density <em>&sigma;</em> and the RGB
+  color for each sampled 3D point along a ray. The implementation is located in
+  <code>nerf_network.py</code>.
+</p>
+
+  <div class="section-img">
+    <img src="figure/mlp_nerf.png" alt="NeRF MLP architecture">
+    <div class="caption">MLP architecture used for the 3D neural field.</div>
+  </div>
+
+<h4>Positional Encoding</h4>
+<p>
+  Both the 3D world coordinates <code>x ∈ ℝ³</code> and the 3D viewing directions
+  <code>d ∈ ℝ³</code> are encoded using sinusoidal positional encodings (PE).  
+  For each input channel, the encoding expands the vector into:
+</p>
+
+<pre style="background:#f8f8f8; padding:10px; border-radius:6px;">
+[x, sin(2⁰πx), cos(2⁰πx), ..., sin(2⁽ᴸ⁻¹⁾πx), cos(2⁽ᴸ⁻¹⁾πx)]
+</pre>
+
+<p>
+  The coordinate encoding uses <code>Lx = 10</code> frequency bands, producing
+  <code>3 × (2Lx + 1) = 63</code> features.  
+  The viewing-direction encoding uses <code>Ld = 4</code>, producing 27 features.
+</p>
+
+<h4>MLP Architecture</h4>
+<p>
+  The NeRF MLP consists of:
+</p>
+
+<ul>
+  <li><strong>8 fully connected layers</strong> with width <strong>W = 256</strong></li>
+  <li><strong>Skip connection</strong> at layer 4, where the input PE is concatenated again</li>
+  <li>A <strong>density (σ)</strong> head: <code>ReLU(W → 1)</code></li>
+  <li>A <strong>color (RGB)</strong> head conditioned on view direction:
+    <ul>
+      <li>Extract features from the coordinate tower</li>
+      <li>Concatenate with direction PE</li>
+      <li>Two-layer MLP → <code>Sigmoid</code> output in <code>[0,1]</code></li>
+    </ul>
+  </li>
+</ul>
+
+<p>
+  This matches the NeRF design: density depends only on the 3D position, while
+  the RGB color depends on both the point and the viewing direction.
+</p>
+
+<h4>Code</h4>
+<p>The full implementation is shown below:</p>
+
+<!--<pre><code class="language-python">-->
+<!--# nerf_network.py-->
+<!--import torch-->
+<!--import torch.nn as nn-->
+<!--import torch.nn.functional as F-->
+<!--from typing import Tuple-->
+
+<!--# -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--# Positional Encoding (PE)-->
+<!--# -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--class PositionalEncoding(nn.Module):-->
+<!--    """-->
+<!--    For each input x in R^C, output:-->
+<!--    [x, sin(2^0 pi x), cos(2^0 pi x), ..., sin(2^{L-1} pi x), cos(2^{L-1} pi x)]-->
+<!--    Output dim = C * (2*L + 1)-->
+<!--    """-->
+<!--    def __init__(self, num_freqs: int):-->
+<!--        super().__init__()-->
+<!--        self.num_freqs = num_freqs-->
+<!--        # register buffers for frequencies-->
+<!--        freqs = 2.0 ** torch.arange(num_freqs).float() * torch.pi  # [L]-->
+<!--        self.register_buffer("freqs", freqs)-->
+
+<!--    @property-->
+<!--    def out_dim(self) -> int:-->
+<!--        # original + sin/cos pairs-->
+<!--        return None  # filled in forward from input dim-->
+
+<!--    def forward(self, x: torch.Tensor) -> torch.Tensor:-->
+<!--        """-->
+<!--        x: (..., C)-->
+<!--        return: (..., C * (2*L + 1))-->
+<!--        """-->
+<!--        # original term-->
+<!--        outs = [x]-->
+<!--        # sin/cos for each freq-->
+<!--        for f in self.freqs:-->
+<!--            outs.append(torch.sin(f * x))-->
+<!--            outs.append(torch.cos(f * x))-->
+<!--        return torch.cat(outs, dim=-1)-->
+
+<!--def pe_out_dim(input_dim: int, L: int) -> int:-->
+<!--    return input_dim * (2 * L + 1)-->
+
+<!--# -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--# NeRF MLP (coarse/fine同构)-->
+<!--# -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--class NeRF(nn.Module):-->
+<!--    """-->
+<!--    NeRF-style network with:-->
+<!--      - deeper coordinate tower with skip at layer 4-->
+<!--      - density (sigma) head from tower features (ReLU)-->
+<!--      - color head conditioned on view direction encoding (Sigmoid)-->
+<!--    Inputs:-->
+<!--      x: world coords (..., 3)-->
+<!--      d: view dirs   (..., 3), will be normalized inside-->
+<!--    """-->
+<!--    def __init__(-->
+<!--        self,-->
+<!--        W: int = 256,           # width-->
+<!--        D: int = 8,             # depth (layers)-->
+<!--        skips: Tuple[int, ...] = (4,),-->
+<!--        Lx: int = 10,           # PE freq for coords-->
+<!--        Ld: int = 4,            # PE freq for dirs (smaller)-->
+<!--    ):-->
+<!--        super().__init__()-->
+<!--        self.W, self.D, self.skips, self.Lx, self.Ld = W, D, skips, Lx, Ld-->
+
+<!--        in_x = pe_out_dim(3, Lx)   # 3 * (2*Lx+1)-->
+<!--        in_d = pe_out_dim(3, Ld)   # 3 * (2*Ld+1)-->
+
+<!--        # coordinate tower with skip at layer 4-->
+<!--        layers = []-->
+<!--        dim_in = in_x-->
+<!--        for i in range(D):-->
+<!--            if i in skips:-->
+<!--                dim_in = in_x + W  # concat input PE later-->
+<!--            layers.append(nn.Linear(dim_in, W))-->
+<!--            dim_in = W-->
+<!--        self.layers = nn.ModuleList(layers)-->
+
+<!--        # sigma (density) head-->
+<!--        self.sigma_head = nn.Linear(W, 1)-->
+
+<!--        # feature for color branch-->
+<!--        self.feature_head = nn.Linear(W, W)-->
+
+<!--        # color head: features (+ dir PE) -> 128 -> rgb-->
+<!--        self.color_fc = nn.Sequential(-->
+<!--            nn.Linear(W + in_d, 128),-->
+<!--            nn.ReLU(True),-->
+<!--            nn.Linear(128, 3)-->
+<!--        )-->
+
+<!--        # encoders-->
+<!--        self.pe_x = PositionalEncoding(Lx)-->
+<!--        self.pe_d = PositionalEncoding(Ld)-->
+
+<!--        # init-->
+<!--        self._init_weights()-->
+
+<!--    def _init_weights(self):-->
+<!--        def init_lin(m):-->
+<!--            if isinstance(m, nn.Linear):-->
+<!--                nn.init.xavier_uniform_(m.weight)-->
+<!--                nn.init.zeros_(m.bias)-->
+<!--        self.apply(init_lin)-->
+
+<!--    def forward(self, x: torch.Tensor, d: torch.Tensor):-->
+<!--        """-->
+<!--        x: (..., 3) world coords-->
+<!--        d: (..., 3) view dirs-->
+<!--        returns:-->
+<!--          sigma: (..., 1)  (non-negative)-->
+<!--          rgb:   (..., 3)  (in [0,1])-->
+<!--        """-->
+<!--        orig_shape = x.shape[:-1]  # keep for reshape back-->
+<!--        x = x.reshape(-1, 3)-->
+<!--        d = d.reshape(-1, 3)-->
+
+<!--        # normalize dirs-->
+<!--        d = d / (torch.linalg.norm(d, dim=-1, keepdim=True) + 1e-9)-->
+
+<!--        # encodings-->
+<!--        x_enc = self.pe_x(x)      # [N, in_x]-->
+<!--        d_enc = self.pe_d(d)      # [N, in_d]-->
+
+<!--        # coordinate tower with skip-->
+<!--        h = x_enc-->
+<!--        idx_layer_in = 0-->
+<!--        for i, layer in enumerate(self.layers):-->
+<!--            if i in self.skips:-->
+<!--                h = torch.cat([h, x_enc], dim=-1)-->
+<!--            h = layer(h)-->
+<!--            h = F.relu(h, inplace=True)-->
+
+<!--        # sigma & features-->
+<!--        sigma = F.relu(self.sigma_head(h), inplace=False)  # non-negative-->
+<!--        feat  = F.relu(self.feature_head(h), inplace=True)-->
+
+<!--        # color branch conditioned on view dir-->
+<!--        h_col = torch.cat([feat, d_enc], dim=-1)-->
+<!--        rgb   = torch.sigmoid(self.color_fc(h_col))-->
+
+<!--        # reshape back-->
+<!--        sigma = sigma.view(*orig_shape, 1)-->
+<!--        rgb   = rgb.view(*orig_shape, 3)-->
+<!--        return sigma, rgb-->
+
+<!--    @property-->
+<!--    def num_params(self) -> int:-->
+<!--        return sum(p.numel() for p in self.parameters() if p.requires_grad)-->
+
+<!--if __name__ == "__main__":-->
+<!--    import torch-->
+<!--    model = NeRF(W=256, D=8, Lx=10, Ld=4)-->
+<!--    print("Params:", model.num_params)-->
+
+<!--    # batch of 10 rays × 64 samples-->
+<!--    B, S = 10, 64-->
+<!--    x = torch.randn(B, S, 3)-->
+<!--    d = torch.randn(B, S, 3)-->
+<!--    sigma, rgb = model(x, d)-->
+
+<!--    print("sigma:", sigma.shape, sigma.min().item(), sigma.max().item())  # (10,64,1) >= 0-->
+<!--    print("rgb:",   rgb.shape,   rgb.min().item(),   rgb.max().item())    # (10,64,3) ~ [0,1]-->
+
+<!--</code></pre>-->
+
+<p>
+  This network produces valid densities (non-negative) and colors (bounded in [0,1]),
+  and is used by the volume renderer in Part 2.5.
+</p>
+
+
+  <!-- ====================================================== -->
+  <!-- PART 2.5 – Volume Rendering                            -->
+  <!-- ====================================================== -->
+
+<h2>2.5.1 — Volume Rendering</h2>
+<p>
+  Let a camera ray be <code>r(t) = o + t·d</code> with near/far bounds <code>t<sub>n</sub></code> and
+  <code>t<sub>f</sub></code>. Following NeRF, the pixel color is the transmittance-weighted integral of
+  per-point radiance:
+</p>
+
+<div class="section-img">
+  <img src="figure/equation.png" alt="Volume rendering equation">
+  <div class="caption">Continuous formulation used by NeRF (transmittance × density × color).</div>
+</div>
+
+<h4>Discrete approximation</h4>
+<p>
+  We sample depths <code>{t<sub>i</sub>}</code> uniformly (or stratified with jitter) between
+  <code>[t<sub>n</sub>, t<sub>f</sub>]</code>, with step sizes <code>Δ<sub>i</sub> = t<sub>i+1</sub> − t<sub>i</sub></code>.
+  Denote network outputs at each sample as <code>σ<sub>i</sub></code> and <code>rgb<sub>i</sub></code>.
+  The standard alpha-compositing form is:
+</p>
+<ul>
+  <li><code>α<sub>i</sub> = 1 − exp(−σ<sub>i</sub> · Δ<sub>i</sub>)</code> (termination prob. at sample i)</li>
+  <li><code>T<sub>i</sub> = ∏<sub>j&lt;i</sub> (1 − α<sub>j</sub>)</code> (transmittance up to i)</li>
+  <li><code>w<sub>i</sub> = T<sub>i</sub> · α<sub>i</sub></code> (compositing weight)</li>
+  <li><code>C(r) = Σ<sub>i</sub> w<sub>i</sub> · rgb<sub>i</sub></code></li>
+</ul>
+<p>
+  Depth (or opacity) can be accumulated analogously using the same weights
+  <code>w<sub>i</sub></code>. During training we use stratified sampling (noise within each bin) and
+  during evaluation we disable jitter for deterministic renders.
+</p>
+
+<h4>Implementation notes</h4>
+<ul>
+  <li>All ops are vectorized in PyTorch; we use <code>torch.cumsum</code> / <code>torch.cumprod</code> to
+      build <code>T<sub>i</sub></code> and <code>w<sub>i</sub></code> efficiently.</li>
+  <li>Numerical stability: clamp densities and transmittance with small eps (e.g., <code>1e−10</code>).</li>
+  <li>Shapes: <code>sigmas</code> is <code>[B, N, 1]</code>, <code>rgbs</code> is <code>[B, N, 3]</code>,
+      step size array <code>Δ</code> is <code>[N]</code> or <code>[B, N, 1]</code>, output color is <code>[B, 3]</code>.</li>
+  <li>Background color: if desired, add <code>T<sub>final</sub> · bg</code> after the sum.</li>
+</ul>
+
+<!--  <h4>volrend() Implementation (PyTorch)</h4>-->
+<!--  <pre>-->
+<!--# volume_render.py-->
+<!--import torch-->
+
+<!--def volrend(sigmas: torch.Tensor, rgbs: torch.Tensor, step_size: float) -> torch.Tensor:-->
+<!--    """-->
+<!--    Volumetric rendering for a batch of rays.-->
+<!--    Args:-->
+<!--        sigmas: (B, S, 1) density σ >= 0-->
+<!--        rgbs:   (B, S, 3) color in [0,1]-->
+<!--        step_size: float, ∆t between adjacent samples along ray-->
+
+<!--    Returns:-->
+<!--        rendered_colors: (B, 3)-->
+<!--    """-->
+<!--    -->
+<!--    # Implemented in torch for backprop.-->
+
+<!--    # (B, S, 1)-->
+<!--    alphas = 1.0 - torch.exp(-sigmas * step_size)-->
+
+<!--    # (B, S) for cumulative products-->
+<!--    alphas = alphas.squeeze(-1)  # (B, S)-->
+
+<!--    # Compute transmittance T_i: cumprod over (1 - alpha), shifted by 1 with T_0=1-->
+<!--    # torch.cumprod is inclusive, so we shift by concatenating a leading 1-->
+<!--    one_minus_alpha = 1.0 - alphas  # (B, S)-->
+
+<!--    T_prefix = torch.cumprod(-->
+<!--        torch.cat([torch.ones_like(one_minus_alpha[:, :1]), one_minus_alpha + 1e-10], dim=1),-->
+<!--        dim=1-->
+<!--    )[:, :-1]  # (B, S)-->
+
+<!--    weights = T_prefix * alphas  # (B, S)-->
+
+<!--    # Composite colors-->
+<!--    rendered = torch.sum(weights.unsqueeze(-1) * rgbs, dim=1)  # (B, 3)-->
+<!--    return rendered-->
+<!-- </pre>-->
+
+
+  <!-- ====================================================== -->
+  <!-- PART 2.5 – LEGO NeRF Training                          -->
+  <!-- ====================================================== -->
+
+  <h2>2.5.2 — Training NeRF on the LEGO Multi-view Dataset</h2>
+  <p>
+    I load the preprocessed LEGO dataset (<code>lego_200x200.npz</code>), construct camera rays,
+    sample 3D points, evaluate the NeRF network, and render colors via volume rendering.
+    The training objective is MSE between rendered colors and ground-truth pixels; PSNR is reported
+    for validation snapshots.
+  </p>
+
+  <h3>2.5.3 — Dataloader for Rays</h3>
+  <p>
+    For each iteration, I sample a batch of rays by either:
+    <em>(a)</em> per-image sampling (choose M images, then take N//M rays each), or
+    <em>(b)</em> global sampling over all pixels.  
+    I normalize UVs to pixel centers by adding 0.5 offsets and map UV → rays via my <code>pixel_to_ray</code>.
+  </p>
+
+<!--  <h4>RaysData and Sampling Code</h4>-->
+<!--  <pre>-->
+<!--def sample_random_rays_global(-->
+<!--    images: np.ndarray,   # (N,H,W,3) in [0,1]-->
+<!--    K: np.ndarray,        # (3,3)-->
+<!--    c2ws: np.ndarray,     # (N,4,4)-->
+<!--    n_rays: int,-->
+<!--    device: str,-->
+<!--) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:-->
+<!--    """-->
+<!--    从所有训练图像里全局随机采样 n_rays 条光线-->
+<!--    返回:-->
+<!--      rays_o: (n_rays,3), rays_d: (n_rays,3), target_rgb: (n_rays,3)-->
+<!--    """-->
+<!--    N, H, W, _ = images.shape-->
+<!--    # 随机选择图像 & 像素-->
+<!--    img_ids = np.random.randint(0, N, size=(n_rays,))-->
+<!--    us = np.random.randint(0, W, size=(n_rays,))-->
+<!--    vs = np.random.randint(0, H, size=(n_rays,))-->
+
+<!--    # 目标颜色-->
+<!--    target = images[img_ids, vs, us]   # (n_rays,3)-->
+
+<!--    # 统一 K（lego 恒定），逐图批量生成光线-->
+<!--    K_t = to_torch32(K, device)-->
+<!--    uvs = np.stack([us + 0.5, vs + 0.5], axis=1)-->
+<!--    uvs_t = torch.tensor(uvs, dtype=torch.float32, device=device)-->
+
+<!--    rays_o = torch.empty((n_rays, 3), dtype=torch.float32, device=device)-->
+<!--    rays_d = torch.empty((n_rays, 3), dtype=torch.float32, device=device)-->
+
+<!--    # 按图像 id 分组，减少重复变换-->
+<!--    unique_ids = np.unique(img_ids)-->
+<!--    offset_mask = np.zeros(n_rays, dtype=bool)-->
+<!--    for uid in unique_ids:-->
+<!--        mask = (img_ids == uid)-->
+<!--        idxs = np.where(mask)[0]-->
+<!--        c2w_t = to_torch32(c2ws[uid], device)-->
+<!--        # 选出该图像的像素-->
+<!--        ray_o, ray_d = pixel_to_ray(K_t, c2w_t, uvs_t[idxs])-->
+<!--        rays_o[idxs] = ray_o-->
+<!--        rays_d[idxs] = ray_d-->
+<!--        offset_mask[idxs] = True-->
+
+<!--    assert offset_mask.all()-->
+<!--    target_t = torch.tensor(target, dtype=torch.float32, device=device)-->
+<!--    return rays_o, rays_d, target_t  </pre>-->
+
+  <h3>2.5.4 — Training Loop</h3>
+  <p>
+    I use Adam with learning rate <code>5e-4</code>, batch size of <code>10k</code> rays (for the LEGO
+    baseline), and <code>n_samples = 64</code> along each ray. Periodic validation reports PSNR on the
+    6 validation views.
+  </p>
+
+<!--  <h4>Training Loop Code (LEGO)</h4>-->
+<!--  <pre>-->
+<!--# Config-->
+<!--    device = "cuda" if torch.cuda.is_available() else "cpu"-->
+<!--    results_dir = "results"-->
+<!--    ensure_dir(results_dir)-->
+<!--    ensure_dir(os.path.join(results_dir, "train_snaps"))-->
+<!--    ensure_dir(os.path.join(results_dir, "val_snaps"))-->
+
+<!--    # Hyperparams-->
+<!--    iters         = 1000            # 课程参考：1000 steps 可达 23+ PSNR-->
+<!--    rays_per_iter = 10_000          # 每步采样光线数-->
+<!--    n_samples     = 64              # 每条光线采样点数-->
+<!--    near, far     = 2.0, 6.0-->
+<!--    lr            = 5e-4            # 课程建议-->
+<!--    log_interval  = 50-->
+<!--    val_interval  = 100-->
+
+<!--    # Load lego data-->
+<!--    data = np.load("lego_200x200.npz")-->
+<!--    images_train = data["images_train"] / 255.0  # (100,200,200,3)-->
+<!--    c2ws_train   = data["c2ws_train"]-->
+<!--    images_val   = data["images_val"]   / 255.0  # (10,200,200,3)-->
+<!--    c2ws_val     = data["c2ws_val"]-->
+<!--    c2ws_test    = data["c2ws_test"]            # (60,4,4)-->
+<!--    focal        = float(data["focal"])-->
+<!--    H, W = images_train.shape[1:3]-->
+<!--    K = np.array([[focal, 0, W/2],-->
+<!--                  [0, focal, H/2],-->
+<!--                  [0, 0, 1   ]], dtype=np.float32)-->
+
+<!--    # Model-->
+<!--    model = NeRF(W=256, D=8, Lx=10, Ld=4).to(device)-->
+<!--    optimizer = torch.optim.Adam(model.parameters(), lr=lr)-->
+<!--    criterion = nn.MSELoss()-->
+
+<!--    # Logs-->
+<!--    train_losses = []-->
+<!--    val_psnrs = []-->
+
+<!--    print(f"[INFO] Start training on {device} | steps={iters} | rays/it={rays_per_iter}")-->
+
+<!--    t0 = time.time()-->
+<!--    for it in range(1, iters + 1):-->
+<!--        model.train()-->
+<!--        # 1) sample random rays globally-->
+<!--        rays_o, rays_d, target_rgb = sample_random_rays_global(-->
+<!--            images_train, K, c2ws_train, rays_per_iter, device-->
+<!--        )-->
+<!--        # 2) march along rays-->
+<!--        pts, _ = sample_along_rays(rays_o, rays_d,-->
+<!--                                   n_samples=n_samples, near=near, far=far, perturb=True)-->
+<!--        # 3) network forward-->
+<!--        sigma, rgb = model(pts, rays_d.unsqueeze(1).expand_as(pts))-->
+<!--        # 4) volume render-->
+<!--        step_size = (far - near) / n_samples-->
+<!--        pred_rgb = volrend(sigma, rgb, step_size=step_size)  # (B,3)-->
+<!--        # 5) loss-->
+<!--        loss = criterion(pred_rgb, target_rgb)-->
+<!--        optimizer.zero_grad()-->
+<!--        loss.backward()-->
+<!--        optimizer.step()-->
+
+<!--        train_losses.append(loss.item())-->
+
+<!--        if it % log_interval == 0 or it == 1:-->
+<!--            psnr = psnr_from_mse_t(loss.detach())-->
+<!--            elapsed = time.time() - t0-->
+<!--            print(f"[{it:04d}/{iters}] loss={loss.item():.6f} | psnr={psnr:.2f} dB | {elapsed:.1f}s")-->
+
+<!--        # 验证 & 可视化-->
+<!--        if it % val_interval == 0 or it == iters:-->
+<!--            model.eval()-->
+<!--            # 渲染 1 张训练图作为进度快照-->
+<!--            snap_pred = render_one_view(-->
+<!--                model, K, c2ws_train[0], H, W,-->
+<!--                near=near, far=far, n_samples=n_samples, chunk=8192, device=device-->
+<!--            )-->
+<!--            snap_canvas = np.concatenate([images_train[0], snap_pred], axis=1)-->
+<!--            Image.fromarray((snap_canvas * 255).astype(np.uint8)).save(-->
+<!--                os.path.join(results_dir, "train_snaps", f"iter_{it:04d}.png")-->
+<!--            )-->
+<!--            # 评估验证 PSNR（6张）-->
+<!--            mean_psnr, saved_paths = validate_psnr(-->
+<!--                model, images_val, K, c2ws_val, n_imgs=6,-->
+<!--                out_dir=os.path.join(results_dir, "val_snaps"), device=device-->
+<!--            )-->
+<!--            val_psnrs.append((it, mean_psnr))-->
+<!--            print(f"  [val] PSNR(mean over 6) = {mean_psnr:.2f} dB")-->
+
+<!--    # 保存曲线-->
+<!--    import matplotlib.pyplot as plt-->
+<!--    plt.figure()-->
+<!--    plt.plot(train_losses)-->
+<!--    plt.xlabel("Iteration")-->
+<!--    plt.ylabel("Train MSE")-->
+<!--    plt.title("Training Loss")-->
+<!--    plt.tight_layout()-->
+<!--    plt.savefig(os.path.join(results_dir, "train_loss_curve.png"))-->
+<!--    plt.close()-->
+
+<!--    if len(val_psnrs) > 0:-->
+<!--        its, ps = zip(*val_psnrs)-->
+<!--        plt.figure()-->
+<!--        plt.plot(list(its), list(ps))-->
+<!--        plt.xlabel("Iteration")-->
+<!--        plt.ylabel("PSNR (dB)")-->
+<!--        plt.title("Validation PSNR (6 images)")-->
+<!--        plt.tight_layout()-->
+<!--        plt.savefig(os.path.join(results_dir, "val_psnr_curve.png"))-->
+<!--        plt.close()-->
+
+<!--    # 渲染测试相机轨迹视频 (spherical)-->
+<!--    print("[INFO] Rendering c2ws_test video ...")-->
+<!--    frames = []-->
+<!--    for i, c2w in enumerate(c2ws_test):-->
+<!--        img = render_one_view(-->
+<!--            model, K, c2w, H, W,-->
+<!--            near=near, far=far, n_samples=n_samples, chunk=8192, device=device-->
+<!--        )-->
+<!--        frames.append((img * 255).astype(np.uint8))-->
+<!--    gif_path = os.path.join(results_dir, "lego_spin.gif")-->
+<!--    imageio.mimsave(gif_path, frames, fps=15)-->
+<!--    print(f"[DONE] Saved video: {gif_path}")-->
+
+<!--</pre>-->
+
+
+<h3>2.5.5 — Training Loss & Validation PSNR</h3>
+
+<div class="section-img" style="display:flex; gap:12px; justify-content:space-between;">
+  <div style="width:49%; text-align:center;">
+    <img src="results/train_loss_curve.png" style="width:100%;" alt="Training loss curve">
+    <div class="caption">Training loss decreases smoothly across iterations.</div>
+  </div>
+
+  <div style="width:49%; text-align:center;">
+    <img src="results/val_psnr_curve.png" style="width:100%;" alt="Validation PSNR curve">
+    <div class="caption">Validation PSNR curve (right), reaching above 23 dB.</div>
+  </div>
+</div>
+
+
+<h3>2.5.6 — Training Progression on the LEGO Scene</h3>
+<p>
+  Below are intermediate renderings of the LEGO NeRF at different training iterations.
+  As training proceeds, both geometry and color become sharper and more accurate.
+</p>
+
+<div class="img-row">
+  <div class="img-col">
+    <img src="results/train_snaps/iter_0100.png" alt="100 iterations">
+    <div class="caption">Iteration 100</div>
+  </div>
+  <div class="img-col">
+    <img src="results/train_snaps/iter_0200.png" alt="200 iterations">
+    <div class="caption">Iteration 200</div>
+  </div>
+  <div class="img-col">
+    <img src="results/train_snaps/iter_0300.png" alt="300 iterations">
+    <div class="caption">Iteration 300</div>
+  </div>
+</div>
+
+<div class="img-row">
+  <div class="img-col">
+    <img src="results/train_snaps/iter_0400.png" alt="400 iterations">
+    <div class="caption">Iteration 400</div>
+  </div>
+  <div class="img-col">
+    <img src="results/train_snaps/iter_0500.png" alt="500 iterations">
+    <div class="caption">Iteration 500</div>
+  </div>
+  <div class="img-col">
+    <img src="results/train_snaps/iter_0600.png" alt="600 iterations">
+    <div class="caption">Iteration 600</div>
+  </div>
+</div>
+
+<div class="img-row">
+  <div class="img-col">
+    <img src="results/train_snaps/iter_0700.png" alt="700 iterations">
+    <div class="caption">Iteration 700</div>
+  </div>
+  <div class="img-col">
+    <img src="results/train_snaps/iter_0800.png" alt="800 iterations">
+    <div class="caption">Iteration 800</div>
+  </div>
+  <div class="img-col">
+    <img src="results/train_snaps/iter_0900.png" alt="900 iterations">
+    <div class="caption">Iteration 900</div>
+  </div>
+</div>
+
+<div class="img-row">
+  <div class="img-col">
+    <img src="results/train_snaps/iter_1000.png" alt="1000 iterations">
+    <div class="caption">Iteration 1000</div>
+  </div>
+</div>
+
+<style>
+  .img-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    gap: 20px;
+  }
+  .img-col {
+    text-align: center;
+  }
+  .img-col img {
+    width: 260px;  /* adjust if needed */
+    border-radius: 6px;
+  }
+  .caption {
+    font-size: 14px;
+    margin-top: 6px;
+    color: #555;
+  }
+</style>
+
+
+
+  <h3>2.5.7 — Spherical Rendering Video</h3>
+  <p>
+    I render a novel-view video using the provided <code>c2ws_test</code> trajectory:
+    the camera circles the LEGO scene on a sphere around the object.
+  </p>
+
+<div class="section-img" style="text-align:center;">
+  <img src="results/lego_spin_loop.gif" alt="LEGO spherical rendering" style="width:720px;">
+  <div class="caption">Spherical rendering using test cameras provided with the dataset.</div>
+</div>
+
+
+  <!-- ====================================================== -->
+  <!-- PART 2.6 – Training with My Own Data (Mouse)           -->
+  <!-- ====================================================== -->
+
+  <h2>2.6 — Training NeRF with My Own Data (Mouse)</h2>
+  <p>
+    I collected a custom dataset consisting of 80 photos of a computer mouse next to a printed 4×4 ArUco tag.
+    Using the same calibration pipeline from Part 0, I produced undistorted images and corresponding c2w poses.
+    The scene is small and close to the camera, so I carefully tuned near/far and sampling density to avoid
+    floating foggy voxels and to improve reconstruction.
+  </p>
+
+  <div class="section-img">
+    <img src="scan_downsampled/ds_20251106-175832(34).jpg" alt="Mouse — overview">
+    <div class="caption">Sample views from the mouse dataset and the capture setup with a printed ArUco tag.</div>
+  </div>
+
+  <h3>2.6.1 — Engineering & Hyperparameter Choices</h3>
+  <ul>
+    <li><strong>Checkpoint-first training:</strong> during training I <em>save checkpoints but do not render</em> intermediate images to reduce peak VRAM usage; I render after training completes.</li>
+    <li><strong>Samples per ray:</strong> <code>n_samples = 128</code> (↑ from 64) to improve quality on my real data.</li>
+    <li><strong>Model capacity:</strong> NeRF hidden width <code>= 512</code> to better fit high-frequency details.</li>
+    <li><strong>Training schedule:</strong> <code>iters = 40,000</code> total iterations.</li>
+    <li><strong>Rays per iteration:</strong> <code>batch_rays = 5,000</code> (↓ to keep VRAM manageable). </li>
+    <li><strong>Near/Far range:</strong> <code>near = 0.001</code>, <code>far = 1.0</code> to mitigate mid/far fogging and near-plane occlusion artifacts.</li>
+    <li><strong>Rendering chunk:</strong> <code>chunk = 8192</code> during inference; <code>16384</code> OOMs on 16 GB with width=512, so I cut it in half and pay extra time instead.</li>
+    <li><strong>Optimizer:</strong> Adam, LR = <code>5e-4</code> (cosine decay to stabilize late training).</li>
+  </ul>
+
+  <h4>Why these choices?</h4>
+  <p>
+    A larger MLP and more samples per ray substantially improve reconstruction fidelity, but increase memory.
+    By lowering <code>batch_rays</code> and deferring renders until the end, I keep peak memory within 16 GB.
+    The tighter <code>[near, far]</code> also removes translucent “air” density that otherwise appears when the
+    sampling slab is too large for a close-range desk scene.
+  </p>
+
+  <h3>2.6.2 — Data Loader & Training (Mouse)</h3>
+  <p>
+    I reuse the multiview rays pipeline from LEGO, but with dataset-specific <code>near/far</code>, higher
+    <code>n_samples</code>, and larger MLP. I log loss/PSNR and save weights periodically.
+  </p>
+
+<!--  <h4>Training Loop Code (Mouse)</h4>-->
+<!--  <pre>-->
+<!--import os, time, math-->
+<!--import numpy as np-->
+<!--import torch-->
+<!--import torch.nn as nn-->
+<!--from typing import Tuple, List-->
+<!--from PIL import Image-->
+<!--import imageio.v2 as imageio-->
+
+<!--from rays_geometry import pixel_to_ray-->
+<!--from sample_along_rays import sample_along_rays-->
+<!--from volume_render import volrend-->
+<!--from render_utils import render_one_view-->
+<!--from nerf_network import NeRF-->
+
+<!--print("PYTORCH_CUDA_ALLOC_CONF =", os.getenv("PYTORCH_CUDA_ALLOC_CONF"))-->
+
+<!--torch.cuda.empty_cache()-->
+
+<!--# =========================-->
+<!--# Helper / Utils-->
+<!--# =========================-->
+<!--def ensure_dir(p): os.makedirs(p, exist_ok=True)-->
+<!--def to_torch32(x, device): return torch.tensor(x, dtype=torch.float32, device=device)-->
+<!--def psnr_from_mse_t(mse_t: torch.Tensor) -> float: return (-10.0 * torch.log10(mse_t + 1e-12)).item()-->
+
+<!--def to_uint8_rgb(img01: np.ndarray, assume_bgr: bool = True) -> np.ndarray:-->
+<!--    """-->
+<!--    img01: [H,W,3] 浮点 0..1-->
+<!--    assume_bgr=True 表示 img01 的通道顺序是 BGR，需要转为 RGB 才能给 PIL/imageio 看-->
+<!--    """-->
+<!--    img = np.clip(img01, 0.0, 1.0)-->
+<!--    if assume_bgr:-->
+<!--        img = img[..., ::-1]  # BGR -> RGB-->
+<!--    return (img * 255.0 + 0.5).astype(np.uint8)-->
+
+<!--def save_png(path: str, img01: np.ndarray, assume_bgr: bool = True):-->
+<!--    Image.fromarray(to_uint8_rgb(img01, assume_bgr=assume_bgr)).save(path)-->
+
+<!--def look_at_origin(pos):-->
+<!--    pos = np.asarray(pos, dtype=np.float32)-->
+<!--    forward = -pos / (np.linalg.norm(pos) + 1e-9)-->
+<!--    up = np.array([0, 1, 0], dtype=np.float32)-->
+<!--    right = np.cross(up, forward); right /= (np.linalg.norm(right) + 1e-9)-->
+<!--    up = np.cross(forward, right)-->
+<!--    c2w = np.eye(4, dtype=np.float32)-->
+<!--    c2w[:3, 0] = right; c2w[:3, 1] = up; c2w[:3, 2] = forward; c2w[:3, 3] = pos-->
+<!--    return c2w-->
+
+<!--def rot_x(phi):-->
+<!--    return np.array([-->
+<!--        [math.cos(phi), -math.sin(phi), 0, 0],-->
+<!--        [math.sin(phi),  math.cos(phi), 0, 0],-->
+<!--        [0,              0,             1, 0],-->
+<!--        [0,              0,             0, 1],-->
+<!--    ], dtype=np.float32)-->
+
+<!--@torch.no_grad()-->
+<!--def sample_random_rays_global(images, K, c2ws, n_rays, device):-->
+<!--    """-->
+<!--    从所有训练图像里全局随机采样 n_rays 条光线-->
+<!--    返回: rays_o, rays_d, target_rgb (n_rays,3)-->
+<!--    """-->
+<!--    N, H, W, _ = images.shape-->
+<!--    img_ids = np.random.randint(0, N, size=(n_rays,))-->
+<!--    us = np.random.randint(0, W, size=(n_rays,))-->
+<!--    vs = np.random.randint(0, H, size=(n_rays,))-->
+<!--    target = images[img_ids, vs, us]   # (n_rays,3)-->
+
+<!--    K_t = to_torch32(K, device)-->
+<!--    uvs = np.stack([us + 0.5, vs + 0.5], axis=1)-->
+<!--    uvs_t = torch.tensor(uvs, dtype=torch.float32, device=device)-->
+
+<!--    rays_o = torch.empty((n_rays, 3), dtype=torch.float32, device=device)-->
+<!--    rays_d = torch.empty((n_rays, 3), dtype=torch.float32, device=device)-->
+
+<!--    unique_ids = np.unique(img_ids)-->
+<!--    for uid in unique_ids:-->
+<!--        mask = (img_ids == uid)-->
+<!--        idxs = np.where(mask)[0]-->
+<!--        c2w_t = to_torch32(c2ws[uid], device)-->
+<!--        ro, rd = pixel_to_ray(K_t, c2w_t, uvs_t[idxs])-->
+<!--        rays_o[idxs] = ro; rays_d[idxs] = rd-->
+
+<!--    target_t = torch.tensor(target, dtype=torch.float32, device=device)-->
+<!--    return rays_o, rays_d, target_t-->
+
+<!--@torch.no_grad()-->
+<!--def validate_psnr(model, images_val, K, c2ws_val, near, far, n_samples, out_dir, device, max_imgs=6):-->
+<!--    ensure_dir(out_dir)-->
+<!--    H, W = images_val.shape[1:3]-->
+<!--    picks = list(range(min(max_imgs, images_val.shape[0])))-->
+
+<!--    psnrs = []-->
+<!--    for i in picks:-->
+<!--        gt = images_val[i]-->
+<!--        pred = render_one_view(-->
+<!--            model, K, c2ws_val[i], H, W,-->
+<!--            near=near, far=far, n_samples=n_samples,-->
+<!--            chunk=8192, device=device-->
+<!--        )-->
+
+<!--        # &#45;&#45;&#45;&#45; 数值保护：防止 NaN / Inf / 越界 &#45;&#45;&#45;&#45;-->
+<!--        pred = np.nan_to_num(pred, nan=0.0, posinf=1.0, neginf=0.0)-->
+<!--        pred = np.clip(pred, 0.0, 1.0)-->
+<!--        gt = np.clip(gt, 0.0, 1.0)-->
+
+<!--        mse = np.mean((pred - gt) ** 2) + 1e-12-->
+<!--        psnr = -10.0 * math.log10(mse)-->
+<!--        psnrs.append(psnr)-->
+
+<!--        # 拼接 GT 与预测结果 (横向对比)-->
+<!--        canvas = np.concatenate([gt, pred], axis=1)-->
+<!--        canvas = np.clip(canvas, 0.0, 1.0)  # 再保险-->
+<!--        save_png(os.path.join(out_dir, f"val_{i:02d}.png"), canvas, assume_bgr=True)-->
+
+<!--    return float(np.mean(psnrs)) if psnrs else 0.0-->
+
+<!--@torch.no_grad()-->
+<!--def offline_render_all(checkpoints_dir, images_train, c2ws_train, K, H, W, near, far, n_samples, c2ws_test, device):-->
+<!--    # load all checkpoints-->
+<!--    ckpts = sorted([f for f in os.listdir(checkpoints_dir) if f.endswith(".pth")])-->
+<!--    out_snap = os.path.join("results_custom", "train_snaps")-->
+<!--    ensure_dir(out_snap)-->
+
+<!--    print("[INFO] Start offline rendering...")-->
+
+<!--    for ck in ckpts:-->
+<!--        print("[INFO] Rendering snapshot for", ck)-->
+<!--        data = torch.load(os.path.join(checkpoints_dir, ck), map_location=device)-->
+
+<!--        model = NeRF(W=512, D=8, Lx=12, Ld=4).to(device)-->
+<!--        model.load_state_dict(data["model"])-->
+<!--        model.eval()-->
+
+<!--        iter_id = data["iter"]-->
+
+<!--        # &#45;&#45;&#45;&#45; render train[0] for snapshot &#45;&#45;&#45;&#45;-->
+<!--        pred = render_one_view(-->
+<!--            model, K, c2ws_train[0], H, W,-->
+<!--            near=near, far=far, n_samples=n_samples, chunk=8192, device=device-->
+<!--        )-->
+<!--        gt = images_train[0]-->
+<!--        canvas = np.concatenate([gt, pred], axis=1)-->
+<!--        save_png(os.path.join(out_snap, f"iter_{iter_id:05d}.png"), canvas, assume_bgr=True)-->
+
+<!--    # &#45;&#45;&#45;&#45; render GIF using final checkpoint &#45;&#45;&#45;&#45;-->
+<!--    print("[INFO] Rendering GIF using last checkpoint:", ckpts[-1])-->
+<!--    data = torch.load(os.path.join(checkpoints_dir, ckpts[-1]), map_location=device)-->
+
+<!--    model = NeRF(W=512, D=8, Lx=12 , Ld=4).to(device)-->
+<!--    model.load_state_dict(data["model"])-->
+<!--    model.eval()-->
+
+<!--    frames = []-->
+<!--    for c2w in c2ws_test:-->
+<!--        img = render_one_view(model, K, c2w, H, W,-->
+<!--                              near=near, far=far, n_samples=n_samples, chunk=8192, device=device)-->
+<!--        frames.append(to_uint8_rgb(img, assume_bgr=True))-->
+
+<!--    gif_path = os.path.join("results_custom", "final_orbit.gif")-->
+<!--    imageio.mimsave(gif_path, frames, fps=15)-->
+<!--    print("[DONE] Saved GIF →", gif_path)-->
+
+<!--# =========================-->
+<!--# Main (custom data)-->
+<!--# =========================-->
+<!--def main():-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    # Config-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    device = "cuda" if torch.cuda.is_available() else "cpu"-->
+<!--    torch.backends.cuda.matmul.allow_tf32 = True-->
+<!--    torch.backends.cudnn.allow_tf32 = True-->
+<!--    try: torch.set_float32_matmul_precision("high")-->
+<!--    except: pass-->
+
+<!--    results_dir = "results_custom"-->
+<!--    ensure_dir(results_dir)-->
+<!--    ensure_dir(os.path.join(results_dir, "train_snaps"))-->
+
+<!--    # NeRF 训练参数-->
+<!--    near, far = 0.001, 0.5-->
+<!--    n_samples = 128-->
+<!--    rays_per_iter = 5000-->
+<!--    iters = 40000-->
+<!--    lr = 5e-4-->
+<!--    log_interval = 50-->
+<!--    snapshot_interval = 8000   # ✅ 每 2000 轮输出一张训练渲染结果-->
+
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    # Load dataset-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    data = np.load("dataset/my_data.npz")-->
+<!--    images_train = data["images_train"] / 255.0-->
+<!--    c2ws_train   = data["c2ws_train"]-->
+<!--    K            = data["K"]-->
+<!--    H, W = images_train.shape[1:3]-->
+
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    # Orbit trajectory-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    c0 = c2ws_train[1].astype(np.float32)-->
+<!--    x0, y0, z0 = c0[0,3], c0[1,3], c0[2,3]-->
+<!--    R = float(np.sqrt(x0*x0 + y0*y0))-->
+<!--    if R < 1e-6: R = 0.3-->
+
+<!--    NUM_SAMPLES = 30-->
+<!--    c2ws_test = []-->
+<!--    for phi in np.linspace(0, 2*np.pi, NUM_SAMPLES, endpoint=False):-->
+<!--        cam_pos = np.array([R*np.cos(phi), R*np.sin(phi), z0], dtype=np.float32)-->
+<!--        target  = np.array([0,0,0], dtype=np.float32)-->
+<!--        up = np.array([0,0,-1], dtype=np.float32)-->
+
+<!--        forward = target - cam_pos; forward /= np.linalg.norm(forward)+1e-9-->
+<!--        right   = np.cross(up, forward); right /= np.linalg.norm(right)+1e-9-->
+<!--        true_up = np.cross(forward, right)-->
+
+<!--        c2w = np.eye(4, dtype=np.float32)-->
+<!--        c2w[:3,0] = right-->
+<!--        c2w[:3,1] = true_up-->
+<!--        c2w[:3,2] = forward-->
+<!--        c2w[:3,3] = cam_pos-->
+<!--        c2ws_test.append(c2w)-->
+<!--    c2ws_test = np.stack(c2ws_test, axis=0)-->
+
+<!--    print(f"[INFO] Test trajectory: {len(c2ws_test)} poses")-->
+
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    # Model-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    model = NeRF(W=512, D=8, Lx=12, Ld=4).to(device)-->
+<!--    optimizer = torch.optim.Adam(model.parameters(), lr=lr)-->
+<!--    criterion = nn.MSELoss()-->
+<!--    scaler = torch.cuda.amp.GradScaler(enabled=(device=="cuda"))-->
+
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    # Train-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    train_losses = []-->
+<!--    train_psnrs = []-->
+<!--    checkpoints_dir = os.path.join(results_dir, "ckpts")-->
+<!--    ensure_dir(checkpoints_dir)-->
+
+<!--    for it in range(1, iters + 1):-->
+<!--        model.train()-->
+<!--        rays_o, rays_d, target_rgb = sample_random_rays_global(-->
+<!--            images_train, K, c2ws_train, rays_per_iter, device-->
+<!--        )-->
+<!--        pts, _ = sample_along_rays(-->
+<!--            rays_o, rays_d, n_samples=n_samples,-->
+<!--            near=near, far=far, perturb=True-->
+<!--        )-->
+
+<!--        with torch.cuda.amp.autocast(enabled=(device == "cuda"), dtype=torch.float16):-->
+<!--            sigma, rgb = model(pts, rays_d.unsqueeze(1).expand_as(pts))-->
+<!--            step = (far - near) / n_samples-->
+<!--            pred_rgb = volrend(sigma, rgb, step_size=step)-->
+<!--            loss = criterion(pred_rgb, target_rgb)-->
+
+<!--        optimizer.zero_grad()-->
+<!--        scaler.scale(loss).backward()-->
+<!--        scaler.step(optimizer)-->
+<!--        scaler.update()-->
+
+<!--        train_losses.append(loss.item())-->
+<!--        psnr = psnr_from_mse_t(loss.detach())-->
+<!--        train_psnrs.append(psnr)-->
+
+<!--        if it % log_interval == 0 or it == 1:-->
+<!--            print(f"[{it}/{iters}] loss={loss.item():.6f} | psnr={psnr:.2f} dB")-->
+
+<!--        # ✅ 只保存模型，不渲染任何图-->
+<!--        if it % snapshot_interval == 0 or it == iters:-->
+<!--            ckpt_path = os.path.join(checkpoints_dir, f"iter_{it:05d}.pth")-->
+<!--            torch.save({-->
+<!--                "iter": it,-->
+<!--                "model": model.state_dict(),-->
+<!--                "optimizer": optimizer.state_dict(),-->
+<!--            }, ckpt_path)-->
+
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    # Curves-->
+<!--    # -&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;&#45;-->
+<!--    import matplotlib.pyplot as plt-->
+
+<!--    plt.figure()-->
+<!--    plt.plot(train_losses)-->
+<!--    plt.xlabel("Iteration")-->
+<!--    plt.ylabel("Train Loss")-->
+<!--    plt.title("Training Loss")-->
+<!--    plt.tight_layout()-->
+<!--    plt.savefig(os.path.join(results_dir, "train_loss_curve.png"))-->
+<!--    plt.close()-->
+
+<!--    plt.figure()-->
+<!--    plt.plot(train_psnrs)-->
+<!--    plt.xlabel("Iteration")-->
+<!--    plt.ylabel("Train PSNR (dB)")-->
+<!--    plt.title("Training PSNR")-->
+<!--    plt.tight_layout()-->
+<!--    plt.savefig(os.path.join(results_dir, "train_psnr_curve.png"))-->
+<!--    plt.close()-->
+
+<!--    offline_render_all("results_custom/ckpts",-->
+<!--                       images_train, c2ws_train,-->
+<!--                       K, H, W, near, far, n_samples,-->
+<!--                       c2ws_test, device)-->
+
+
+
+
+
+<!--if __name__ == "__main__":-->
+<!--    main()-->
+
+
+<!--  </pre>-->
+
+<h3>2.6.3 — Intermediate Renders (Custom Mouse NeRF)</h3>
+<p>
+  Below are intermediate renderings from my custom dataset (mouse object).  
+  As the number of iterations increases, the geometry becomes more stable and texture becomes sharper.
+</p>
+
+<div class="grid3">
+  <div>
+    <img src="results_custom/train_snaps/iter_02000.png" alt="2000 iterations">
+    <div class="caption">2000 iters — coarse shape appears.</div>
+  </div>
+  <div>
+    <img src="results_custom/train_snaps/iter_04000.png" alt="4000 iterations">
+    <div class="caption">4000 iters — cleaner silhouette forming.</div>
+  </div>
+  <div>
+    <img src="results_custom/train_snaps/iter_06000.png" alt="6000 iterations">
+    <div class="caption">6000 iters — better geometry, early texture.</div>
+  </div>
+</div>
+
+<div class="grid3">
+  <div>
+    <img src="results_custom/train_snaps/iter_08000.png" alt="8000 iterations">
+    <div class="caption">8000 iters — fewer floaters, more stable.</div>
+  </div>
+  <div>
+    <img src="results_custom/train_snaps/iter_10000.png" alt="10000 iterations">
+    <div class="caption">10k iters — improved surface detail.</div>
+  </div>
+  <div>
+    <img src="results_custom/train_snaps/iter_16000.png" alt="16000 iterations">
+    <div class="caption">16k iters — sharper texture, better lighting.</div>
+  </div>
+</div>
+
+<div class="grid3">
+  <div>
+    <img src="results_custom/train_snaps/iter_24000.png" alt="24000 iterations">
+    <div class="caption">24k iters — high-frequency details emerging.</div>
+  </div>
+  <div>
+    <img src="results_custom/train_snaps/iter_32000.png" alt="32000 iterations">
+    <div class="caption">32k iters — stable reconstruction quality.</div>
+  </div>
+  <div>
+    <img src="results_custom/train_snaps/iter_40000.png" alt="40000 iterations">
+    <div class="caption">40k iters — final appearance; fine detail recovered.</div>
+  </div>
+</div>
+
+<style>
+  .grid3 {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  .grid3 img {
+    width: 260px;
+    border-radius: 6px;
+  }
+  .caption {
+    text-align: center;
+    font-size: 14px;
+    margin-top: 6px;
+    color: #555;
+  }
+</style>
+
+  <h3>2.6.4 — Loss / PSNR Curves</h3>
+  <div class="pair">
+    <div>
+      <img src="results_custom\train_loss_curve.png" alt="Mouse training loss">
+      <div class="caption">Training loss over 40k iterations.</div>
+    </div>
+    <div>
+      <img src="results_custom\train_psnr_curve.png" alt="Mouse PSNR">
+      <div class="caption">Validation PSNR steadily improves with deeper MLP and 128 samples.</div>
+    </div>
+  </div>
+
+  <h3>2.6.5 — Novel View GIF</h3>
+  <p>
+    After training completes, I render a circular camera path around the mouse using a “look-at-origin” helper
+    and fixed intrinsics. The final result is exported as a GIF:
+  </p>
+  <img src="results_custom\final_orbit_loop.gif" alt="Mouse orbit GIF" class="section-img">
+  <div class="caption">Novel views of my mouse (GIF). Near/far and chunk tweaks remove foggy occlusion near the camera.</div>
+
+<!--  <h4>Rendering Script (post-training)</h4>-->
+<!--  <pre>-->
+<!--@torch.no_grad()-->
+<!--def offline_render_all(checkpoints_dir, images_train, c2ws_train, K, H, W, near, far, n_samples, c2ws_test, device):-->
+<!--    # load all checkpoints-->
+<!--    ckpts = sorted([f for f in os.listdir(checkpoints_dir) if f.endswith(".pth")])-->
+<!--    out_snap = os.path.join("results_custom", "train_snaps")-->
+<!--    ensure_dir(out_snap)-->
+
+<!--    print("[INFO] Start offline rendering...")-->
+
+<!--    for ck in ckpts:-->
+<!--        print("[INFO] Rendering snapshot for", ck)-->
+<!--        data = torch.load(os.path.join(checkpoints_dir, ck), map_location=device)-->
+
+<!--        model = NeRF(W=512, D=8, Lx=12, Ld=4).to(device)-->
+<!--        model.load_state_dict(data["model"])-->
+<!--        model.eval()-->
+
+<!--        iter_id = data["iter"]-->
+
+<!--        # &#45;&#45;&#45;&#45; render train[0] for snapshot &#45;&#45;&#45;&#45;-->
+<!--        pred = render_one_view(-->
+<!--            model, K, c2ws_train[0], H, W,-->
+<!--            near=near, far=far, n_samples=n_samples, chunk=8192, device=device-->
+<!--        )-->
+<!--        gt = images_train[0]-->
+<!--        canvas = np.concatenate([gt, pred], axis=1)-->
+<!--        save_png(os.path.join(out_snap, f"iter_{iter_id:05d}.png"), canvas, assume_bgr=True)-->
+
+<!--    # &#45;&#45;&#45;&#45; render GIF using final checkpoint &#45;&#45;&#45;&#45;-->
+<!--    print("[INFO] Rendering GIF using last checkpoint:", ckpts[-1])-->
+<!--    data = torch.load(os.path.join(checkpoints_dir, ckpts[-1]), map_location=device)-->
+
+<!--    model = NeRF(W=512, D=8, Lx=12 , Ld=4).to(device)-->
+<!--    model.load_state_dict(data["model"])-->
+<!--    model.eval()-->
+
+<!--    frames = []-->
+<!--    for c2w in c2ws_test:-->
+<!--        img = render_one_view(model, K, c2w, H, W,-->
+<!--                              near=near, far=far, n_samples=n_samples, chunk=8192, device=device)-->
+<!--        frames.append(to_uint8_rgb(img, assume_bgr=True))-->
+
+<!--    gif_path = os.path.join("results_custom", "final_orbit.gif")-->
+<!--    imageio.mimsave(gif_path, frames, fps=15)-->
+<!--    print("[DONE] Saved GIF →", gif_path)-->
+<!--  </pre>-->
+
+
+  <!-- ====================================================== -->
+  <!-- Deliverables                                           -->
+  <!-- ====================================================== -->
+
+  <h2>Deliverables Checklist</h2>
+
+  <h3>Part 0 — Camera Calibration and 3D Scanning</h3>
+  <ul>
+    <li>✔ Two screenshots of frustum visualization in Viser</li>
+  </ul>
+
+
+  <h3>Part 1 — 2D Neural Field</h3>
+  <ul>
+    <li>✔ Model architecture report (layers/width/LR)</li>
+    <li>✔ Training progression on provided and custom image</li>
+    <li>✔ Final results (2×2 grid: two widths × two PE levels)</li>
+    <li>✔ PSNR curve</li>
+  </ul>
+
+
+  <h3>Part 2 — NeRF from Multiview Images (LEGO)</h3>
+  <ul>
+    <li>✔ Brief description of each implemented part</li>
+    <li>✔ Visualization of cameras + up to 100 rays + sampled points</li>
+    <li>✔ Training progression renders</li>
+    <li>✔ PSNR curve on validation set</li>
+    <li>✔ Spherical rendering video</li>
+  </ul>
+
+
+  <h3>Part 2.6 — Training with My Own Data (Mouse)</h3>
+  <ul>
+    <li>✔ GIF of camera circling the object (novel views)</li>
+    <li>✔ Discussion of hyperparameter and code changes</li>
+    <li>✔ Plot of training loss</li>
+    <li>✔ Intermediate renders</li>
+  </ul>
+
+
+
+  <!-- ====================================================== -->
+  <!-- Footer                                                 -->
+  <!-- ====================================================== -->
+
+  <footer style="margin-top:36px; color:#666; font-size:0.95em;">
+    <p>Created for CS180 — Fall 2025</p>
+    <p>
+      <a href="../index.html">⬅ Back to Portfolio Home</a>
+    </p>
+  </footer>
+
+</body>
+</html>
