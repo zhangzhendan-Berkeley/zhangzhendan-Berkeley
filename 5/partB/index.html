@@ -190,7 +190,9 @@
   <h3 id="5b-1-2-3">1.2.3 Denoising Pure Noise</h3>
   <p>
     In this section, the UNet attempts to denoise pure noise input.
-    This is a more difficult task and serves as a sanity check for overfitting and learning stability.
+    When training the UNet to denoise pure Gaussian noise using an MSE reconstruction objective, the model is not provided with any meaningful structure to recover. Since the training data contains only noise, the model cannot learn to map inputs to any specific digit or recognizable pattern. Instead, minimizing MSE pushes the network toward predicting the mean of all possible clean images under the dataset distribution.
+
+For MNIST, this “mean image” represents an average over all digits. As a result, the samples produced by the model appear as blurry clouds with faint traces of multiple digits—every class contributes a little, but none dominates strongly enough to form a distinct shape. This explains why the outputs look vague, amorphous, and non-digit-like despite the model converging properly.
   </p>
 
 <!--  <div class="grid grid-2">-->
