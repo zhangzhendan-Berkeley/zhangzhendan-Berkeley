@@ -92,6 +92,21 @@
 ./1_7_3/mydraw2/edit_i_start_3.png
 ./1_7_3/mydraw2/edit_i_start_5.png
 ./1_7_3/mydraw2/edit_i_start_7.png
+./5B/1.2.1Visualization_epoch1.png
+./5B/1.2.1Visualization_epoch5.png
+./5B/1.2.1loss_curve.png
+./5B/1.2.2OOD.png
+./5B/1.2.3Sample.png
+./5B/1.2.3Visualization_epoch1.png
+./5B/1.2.3Visualization_epoch5.png
+./5B/1.2.3loss_curve.png
+./5B/2.2loss_curve.png
+./5B/2.3Sample_epoch1.png
+./5B/2.3Sample_epoch10.png
+./5B/2.3Sample_epoch5.png
+./5B/2.5Sample_epoch1.png
+./5B/2.5loss_curve.png
+./5B/Noising Process.png
 ./Hybrid.png
 ./MyHybrid1.png
 ./MyHybrid2.png

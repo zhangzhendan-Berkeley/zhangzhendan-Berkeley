@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>5B – Diffusion & Flow Matching Experiments</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 16px 80px;
+      line-height: 1.6;
+      background-color: #fafafa;
+    }
+    h1, h2, h3, h4 {
+      margin-top: 1.4em;
+      margin-bottom: 0.4em;
+    }
+    h1 { font-size: 2rem; }
+    h2 { font-size: 1.6rem; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    h3 { font-size: 1.25rem; }
+    h4 { font-size: 1.05rem; }
+    p { margin: 0.3em 0 0.8em; }
+    .section {
+      margin-top: 1.8em;
+      padding: 1rem 1.2rem;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    figure {
+      margin: 0.8em 0 1.2em;
+      text-align: center;
+    }
+    figure img {
+      max-width: 100%;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      background: white;
+    }
+    figcaption {
+      font-size: 0.9rem;
+      color: #555;
+      margin-top: 0.4em;
+    }
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+    .grid-2 {
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+    .todo {
+      padding: 0.6rem 0.8rem;
+      border-left: 3px solid #f59e0b;
+      background: #fffbeb;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      color: #7c2d12;
+    }
+    .note {
+      padding: 0.5rem 0.75rem;
+      border-left: 3px solid #3b82f6;
+      background: #eff6ff;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      color: #1d4ed8;
+    }
+    ul {
+      margin-top: 0.2em;
+      margin-bottom: 0.8em;
+    }
+    code {
+      font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+      font-size: 0.9rem;
+      background: #f3f4f6;
+      padding: 0 4px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1 id="5b">5B. Diffusion & Flow Matching Experiments</h1>
+  <footer style="margin-top:36px; color:#666; font-size:0.95em;">
+    <p>Created for CS180 — Fall 2025</p>
+    <p>
+      <a href="../../index.html">⬅ Back to Portfolio Home</a>
+    </p>
+    <p><a href="../index.html">➡ Go to Part A</a></p>
+  </footer>
+<!-- 1.1 UNet Implementation -->
+<section class="section" id="5b-1-1">
+  <h2>1.1 Implementing the UNet</h2>
+  <p>
+    I implemented a standard UNet following the classic encoder–decoder design:
+    multi-scale feature extraction through downsampling, a bottleneck with highest-level
+    feature aggregation, and upsampling with skip connections to restore spatial detail.
+  </p>
+
+  <p>Key implementation considerations include:</p>
+  <ul>
+    <li><strong>Channel alignment:</strong> Downsampling typically doubles channels; upsampling must correctly match encoder features before concatenation.</li>
+    <li><strong>Spatial alignment:</strong> Padding and stride must be designed so that spatial resolutions match for skip connections.</li>
+    <li><strong>Consistent output shape:</strong> The final layer must produce a <code>(N, 1, 28, 28)</code> output for MNIST.</li>
+    <li><strong>Modular design:</strong> <code>ConvBlock</code>, <code>DownBlock</code>, and <code>UpBlock</code> were separated to facilitate adding time- or class-conditioning later.</li>
+  </ul>
+
+  <div class="note">
+    The two most common mistakes were mismatched skip-connection channels,
+    and forgetting to make the final convolution output a single-channel image.
+  </div>
+
+  <figure>
+    <img src="./5B/unconditional_arch.png" />
+    <figcaption>A schematic of the UNet architecture</figcaption>
+  </figure>
+</section>
+
+<!-- 1.2 Denoising UNet -->
+<section class="section" id="5b-1-2">
+  <h2>1.2 Using the UNet to Train a Denoiser</h2>
+  <p>
+    The UNet was trained as a denoising function: the input is a noisy image,
+    and the target is the corresponding clean image. The noise level (standard deviation)
+    was varied from <code>0</code> to <code>1</code> for visualization.
+  </p>
+
+  <figure>
+    <img src="./5B/Noising Process.png" />
+    <figcaption>
+      Visualization of the noising process from clean image to fully corrupted input.
+    </figcaption>
+  </figure>
+
+  <h3 id="5b-1-2-1">1.2.1 Training</h3>
+  <p>
+    For a fixed noise level (<code>σ = 0.5</code>), the UNet was trained using MSE loss.
+    Below are denoising visualizations at epoch 1 and epoch 5, as well as the training loss curve.
+  </p>
+
+<!--  <div class="grid grid-2">-->
+    <figure>
+      <img src="./5B/1.2.1Visualization_epoch1.png" />
+      <figcaption>
+        Epoch 1 denoising results. The coarse digit structure is visible, but fine details are not yet restored.
+      </figcaption>
+    </figure>
+
+    <figure>
+      <img src="./5B/1.2.1Visualization_epoch5.png" />
+      <figcaption>
+        Epoch 5 denoising results. Edges are sharper and the background is cleaner compared to epoch 1.
+      </figcaption>
+    </figure>
+<!--  </div>-->
+
+  <figure>
+    <img src="./5B/1.2.1loss_curve.png" />
+    <figcaption>
+      Training loss curve for <code>σ = 0.5</code>. Loss decreases steadily and flattens toward the end.
+    </figcaption>
+  </figure>
+
+  <div class="note">
+    Common pitfalls:
+    <ul>
+      <li>Adding noise incorrectly during training (using a different σ than the test visualization).</li>
+      <li>Clamping only the noisy image while keeping the clean target unclamped, causing biased gradients.</li>
+    </ul>
+  </div>
+
+  <h3 id="5b-1-2-2">1.2.2 Out-of-Distribution Testing</h3>
+  <p>
+    After training with <code>σ = 0.5</code>, I tested the model on noise levels outside the training distribution.
+    The same image was used while varying σ from 0 to 1.
+  </p>
+
+  <figure>
+    <img src="./5B/1.2.2OOD.png" />
+    <figcaption>
+      Denoising results across different noise levels. Performance is best near the training σ,
+      and degrades for both under- and over-noised inputs.
+    </figcaption>
+  </figure>
+
+
+
+  <h3 id="5b-1-2-3">1.2.3 Denoising Pure Noise</h3>
+  <p>
+    In this section, the UNet attempts to denoise pure noise input.
+    This is a more difficult task and serves as a sanity check for overfitting and learning stability.
+  </p>
+
+<!--  <div class="grid grid-2">-->
+    <figure>
+      <img src="./5B/1.2.3Visualization_epoch1.png" />
+      <figcaption>
+        Epoch 1 denoising of pure noise. Output resembles a smoothed version of noise.
+      </figcaption>
+    </figure>
+
+    <figure>
+      <img src="./5B/1.2.3Visualization_epoch5.png" />
+      <figcaption>
+        Epoch 5 results. Some pseudo-structures begin to appear as the model tries to find patterns.
+      </figcaption>
+    </figure>
+<!--  </div>-->
+
+  <figure>
+    <img src="./5B/1.2.3loss_curve.png" />
+    <figcaption>
+      Loss curve for pure-noise denoising. More unstable compared to real-image denoising.
+    </figcaption>
+  </figure>
+
+  <figure>
+    <img src="./5B/1.2.3Sample.png" />
+    <figcaption>
+      Sample outputs from pure-noise inputs. The model tends to output smoothed average-like patterns.
+    </figcaption>
+  </figure>
+</section>
+
+<!-- Part 2 -->
+<section class="section" id="5b-2">
+  <h2>Part 2: Training a Flow Matching Model</h2>
+  <p>
+    In Part 2, the UNet is modified into time-conditioned and class-conditioned flow matching models.
+    The objective switches from predicting clean images to predicting the vector field
+    <code>v = x₁ − x₀</code> that guides the ODE from noise to data.
+  </p>
+
+  <p>Some observed patterns during generation:</p>
+  <ul>
+    <li><strong>Early epochs:</strong> Outputs are blurry; contours gradually emerge.</li>
+    <li><strong>With time conditioning:</strong> Convergence speeds up because the model learns different denoising “speeds” at different time steps.</li>
+    <li><strong>With class conditioning:</strong> Samples become significantly more structured even with fewer epochs.</li>
+    <li><strong>CFG scale:</strong> Higher guidance improves class fidelity but may amplify noise artifacts.</li>
+  </ul>
+</section>
+
+<!-- 2.1 Time Conditioning -->
+<section class="section" id="5b-2-1">
+  <h2>2.1 Adding Time Conditioning to the UNet</h2>
+  <p>
+    Compared to the vanilla UNet, the time-conditioned version introduces:
+  </p>
+  <ul>
+    <li>
+      <strong>Time-embedding FCBlocks:</strong>
+      Two MLPs <code>FCBlock(1, 2D)</code> and <code>FCBlock(1, D)</code> map normalized time <code>t ∈ [0,1]</code>
+      into per-channel modulation vectors.
+    </li>
+    <li>
+      <strong>Feature modulation:</strong>
+      Time embeddings modulate the bottleneck (<code>b = b · t₁</code>) and the first up-block (<code>u₁ = u₁ · t₂</code>).
+    </li>
+  </ul>
+
+  <div class="note">
+    Easy-to-make mistakes:
+    <ul>
+      <li><strong>Using the wrong t shape:</strong> The FCBlock expects input <code>(N,1)</code>.</li>
+      <li><strong>Accidentally normalizing FCBlock outputs using <code>.norm()</code>:</strong> This destroys per-channel modulation.</li>
+      <li><strong>Forgetting to normalize time:</strong> Time must be within <code>[0,1]</code> during both training and sampling.</li>
+    </ul>
+  </div>
+  <figure>
+    <img src="./5B/conditional_arch_fm.png" />
+    <figcaption>A schematic of the UNet architecture added with Time Conditioning</figcaption>
+  </figure>
+
+</section>
+
+<!-- 2.2 Training Time-Conditioned UNet -->
+<section class="section" id="5b-2-2">
+  <h2>2.2 Training the Time-Conditioned UNet</h2>
+  <p>
+    The model is trained to match the vector field <code>x₁ − x₀</code>.
+    The loss curve over the entire training process is shown below.
+  </p>
+
+  <figure>
+    <img src="./5B/2.2loss_curve.png" />
+    <figcaption>
+      Loss curve for the time-conditioned Flow Matching UNet.
+    </figcaption>
+  </figure>
+</section>
+
+<!-- 2.3 Sampling Time-Conditioned UNet -->
+<section class="section" id="5b-2-3">
+  <h2>2.3 Sampling from the Time-Conditioned UNet</h2>
+  <p>
+    Sampling integrates the vector field via:
+    <code>xₜ₊Δₜ = xₜ + v̂(xₜ, t) Δt</code>,
+    starting from Gaussian noise. Below are results at 1, 5, and 10 epochs.
+  </p>
+
+  <div class="grid grid-2">
+    <figure>
+      <img src="./5B/2.3Sample_epoch1.png" />
+      <figcaption>Samples after 1 epoch.</figcaption>
+    </figure>
+
+    <figure>
+      <img src="./5B/2.3Sample_epoch5.png" />
+      <figcaption>Samples after 5 epochs.</figcaption>
+    </figure>
+  </div>
+
+  <figure>
+    <img src="./5B/2.3Sample_epoch10.png" />
+    <figcaption>Samples after 10 epochs.</figcaption>
+  </figure>
+</section>
+
+<!-- 2.4 Class Conditioning -->
+<section class="section" id="5b-2-4">
+  <h2>2.4 Adding Class Conditioning to the UNet</h2>
+  <p>
+    The class-conditioned model extends the time-conditioned model with:
+  </p>
+  <ul>
+    <li><strong>One-hot class embedding:</strong> Labels <code>0–9</code> are mapped to 10-dim one-hot vectors, then to channel-wise modulation via <code>FCBlock(10, 2D)</code> and <code>FCBlock(10, D)</code>.</li>
+    <li><strong>Joint modulation:</strong> Unflatten and up-block features are modulated using both time and class embeddings.</li>
+    <li><strong>Classifier-Free Guidance training:</strong> With probability <code>p_uncond</code>, the class vector is replaced with all zeros.</li>
+  </ul>
+
+  <div class="note">
+    Common mistakes:
+    <ul>
+      <li>Using <code>FCBlock(1,...)</code> instead of <code>FCBlock(10,...)</code> for class embedding.</li>
+      <li>Multiplying masks incorrectly (mask=0 must produce an all-zero class vector).</li>
+      <li>Mismatching feature-map dimensions when injecting class modulation.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 2.5 Training Class-Conditioned UNet -->
+<section class="section" id="5b-2-5">
+  <h2>2.5 Training the Class-Conditioned UNet</h2>
+
+  <h3>Training Loss Curve</h3>
+  <figure>
+    <img src="./5B/2.5loss_curve.png" />
+    <figcaption>Loss curve for the class-conditioned Flow Matching UNet.</figcaption>
+  </figure>
+
+  <h3>Sampling Results</h3>
+  <p>
+    Four samples for each digit (0–9) are generated after 1, 5, and 10 epochs.
+  </p>
+
+  <figure>
+    <img src="./5B/2.5Sample_epoch1.png" />
+    <figcaption>Samples after 1 epoch.</figcaption>
+  </figure>
+
+
+    <figure>
+      <img src="./5B/2.5Sample_epoch5.png" />
+      <figcaption>
+        Samples after 5 epochs.
+      </figcaption>
+    </figure>
+
+    <figure>
+      <img src="./5B/2.5Sample_epoch10.png" />
+      <figcaption>
+        Samples after 10 epochs.
+      </figcaption>
+    </figure>
+
+
+  <h2>2.6 Removing the Learning Rate Scheduler</h2>
+    <p>
+    In the original implementation of the class-conditioned Flow Matching model, I used an
+    exponential learning-rate scheduler to stabilize the optimization process. The scheduler
+    naturally reduces the effective learning rate during later epochs, preventing divergence
+    when the model begins fitting high-frequency details. After removing the scheduler, I
+    observed that the model became noticeably less stable in the later phase of training, with
+    the loss curve showing oscillations and the generated digits becoming noisy.
+    </p>
+
+    <p>
+    To compensate for the loss of dynamic learning-rate decay, I adopted two simple but effective
+    techniques:
+    </p>
+
+    <ul>
+      <li><strong>Reduced the fixed learning rate</strong> from <code>1e-2</code> to <code>3e-3</code>, providing a more conservative update size throughout training.</li>
+      <li>
+        <strong>Applied gradient clipping</strong>
+        (<code>clip_grad_norm_ = 1.0</code>) to prevent exploding gradients caused by large
+        velocity targets at high-noise timesteps.
+      </li>
+    </ul>
+
+    <p>
+    This combination effectively mimics the stabilizing effect of the scheduler: the model trains
+    more smoothly and achieves nearly the same sample quality by epoch 10. The training process
+    is also easier to reproduce because it relies on a single fixed learning rate.
+    </p>
+
+    <h4>Training Code Snippet</h4>
+    <pre><code class="language-python">
+    optimizer = torch.optim.Adam(model.parameters(), lr=3e-3)
+
+    for epoch in range(num_epochs):
+        loss = model(x, c)         # class-FM forward pass
+        optimizer.zero_grad()
+        loss.backward()
+
+        # prevent exploding gradients
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
+        optimizer.step()
+    </code></pre>
+
+    <h4>Loss Curve (No Scheduler)</h4>
+    <p>The following figure shows the full training loss without the scheduler:</p>
+    <div class="images-row">
+      <img src="./5B/2.6loss_curve.png" />
+    </div>
+
+    <h4>Sampling Results (No Scheduler)</h4>
+    <p>Below are the class-conditioned samples generated after 1, 5, and 10 epochs.</p>
+
+  <figure>
+    <img src="./5B/2.6Sample_epoch1.png" />
+    <figcaption>Samples after 1 epoch.</figcaption>
+  </figure>
+
+
+    <figure>
+      <img src="./5B/2.6Sample_epoch5.png" />
+      <figcaption>
+        Samples after 5 epochs.
+      </figcaption>
+    </figure>
+
+    <figure>
+      <img src="./5B/2.6Sample_epoch10.png" />
+      <figcaption>
+        Samples after 10 epochs.
+      </figcaption>
+    </figure>
+
+</section>
+
+  <footer style="margin-top:36px; color:#666; font-size:0.95em;">
+    <p>Created for CS180 — Fall 2025</p>
+    <p>
+      <a href="../../index.html">⬅ Back to Portfolio Home</a>
+    </p>
+    <p><a href="../index.html">➡ Go to Part A</a></p>
+  </footer>
+
+</body>
+</html>
